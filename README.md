@@ -267,3 +267,9 @@ powershell -ExecutionPolicy Bypass -File .\backend\scripts\local-integration.ps1
 - [docs/case-study-problem-solution-impact.md](docs/case-study-problem-solution-impact.md)
 - [docs/case-study-business-technical-challenges.md](docs/case-study-business-technical-challenges.md)
 - [docs/case-study-portfolio-summary.md](docs/case-study-portfolio-summary.md)
+
+## Interview Materials
+
+- [docs/interview-technical-deep-dive-qa.md](docs/interview-technical-deep-dive-qa.md)
+- [docs/interview-manager-brief.md](docs/interview-manager-brief.md)
+- [docs/interview-cheat-sheet.md](docs/interview-cheat-sheet.md)

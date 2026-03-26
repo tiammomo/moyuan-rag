@@ -79,3 +79,6 @@ I built an enterprise-grade RAG knowledge platform that goes beyond model integr
 - [case-study-problem-solution-impact.md](./case-study-problem-solution-impact.md)
 - [case-study-business-technical-challenges.md](./case-study-business-technical-challenges.md)
 - [case-study-portfolio-summary.md](./case-study-portfolio-summary.md)
+- [interview-technical-deep-dive-qa.md](./interview-technical-deep-dive-qa.md)
+- [interview-manager-brief.md](./interview-manager-brief.md)
+- [interview-cheat-sheet.md](./interview-cheat-sheet.md)
