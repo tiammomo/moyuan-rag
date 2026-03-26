@@ -77,3 +77,9 @@
 - [english-delivery-kit.md](./english-delivery-kit.md)
 - [english-project-pitch-scripts.md](./english-project-pitch-scripts.md)
 - [english-repo-copy-assets.md](./english-repo-copy-assets.md)
+
+## Showcase Materials
+
+- [showcase-architecture-workflow.md](./showcase-architecture-workflow.md)
+- [showcase-demo-walkthrough.md](./showcase-demo-walkthrough.md)
+- [showcase-capture-checklist.md](./showcase-capture-checklist.md)

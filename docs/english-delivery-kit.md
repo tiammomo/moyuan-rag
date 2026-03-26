@@ -73,3 +73,6 @@ I built an enterprise-grade RAG knowledge platform that goes beyond model integr
 - [external-delivery-kit.md](./external-delivery-kit.md)
 - [rag-workflow-hybrid-retrieval.md](./rag-workflow-hybrid-retrieval.md)
 - [rag-interview-qa.md](./rag-interview-qa.md)
+- [showcase-architecture-workflow.md](./showcase-architecture-workflow.md)
+- [showcase-demo-walkthrough.md](./showcase-demo-walkthrough.md)
+- [showcase-capture-checklist.md](./showcase-capture-checklist.md)

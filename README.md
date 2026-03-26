@@ -255,3 +255,9 @@ powershell -ExecutionPolicy Bypass -File .\backend\scripts\local-integration.ps1
 - [docs/english-delivery-kit.md](docs/english-delivery-kit.md)
 - [docs/english-project-pitch-scripts.md](docs/english-project-pitch-scripts.md)
 - [docs/english-repo-copy-assets.md](docs/english-repo-copy-assets.md)
+
+## Showcase Materials
+
+- [docs/showcase-architecture-workflow.md](docs/showcase-architecture-workflow.md)
+- [docs/showcase-demo-walkthrough.md](docs/showcase-demo-walkthrough.md)
+- [docs/showcase-capture-checklist.md](docs/showcase-capture-checklist.md)
