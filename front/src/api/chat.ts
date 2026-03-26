@@ -34,8 +34,8 @@ export const chatApi = {
     const token = localStorage.getItem('token');
     // 获取 API 地址，Next.js 使用 NEXT_PUBLIC_API_URL
     const baseUrl = typeof process !== 'undefined'
-      ? (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000')
-      : 'http://localhost:8000';
+      ? (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:38084')
+      : 'http://localhost:38084';
     // 确保 baseUrl 结尾没有斜杠
     const cleanBaseUrl = baseUrl.replace(/\/$/, '');
 

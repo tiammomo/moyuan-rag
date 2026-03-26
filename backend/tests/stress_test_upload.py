@@ -4,7 +4,7 @@ import time
 import uuid
 
 async def stress_test_upload(num_concurrent=10):
-    url = "http://localhost:8000/api/v1/documents/upload"
+url = "http://localhost:38084/api/v1/documents/upload"
     # 模拟一个有效的 knowledge_id 和 token
     knowledge_id = 1
     token = "YOUR_TOKEN_HERE" # 实际运行时需获取有效 token

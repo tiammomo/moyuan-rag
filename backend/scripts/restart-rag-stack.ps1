@@ -9,6 +9,8 @@ $ErrorActionPreference = "Stop"
 $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $backendRoot = (Resolve-Path (Join-Path $scriptRoot "..")).Path
 $composeFile = Join-Path $backendRoot "docker-compose.yaml"
+$backendUrl = "http://localhost:38084/health"
+$frontUrl = "http://localhost:33004"
 $knownServices = @(
     "mysql8",
     "es",
@@ -167,11 +169,11 @@ foreach ($service in $targets) {
 }
 
 if ($targets -contains "backend") {
-    Wait-HttpHealthy -Name "backend" -Url "http://localhost:8000/health" -TimeoutSec $HealthTimeoutSec
+    Wait-HttpHealthy -Name "backend" -Url $backendUrl -TimeoutSec $HealthTimeoutSec
 }
 
 if ($targets -contains "front") {
-    Wait-HttpHealthy -Name "front" -Url "http://localhost:3000" -TimeoutSec $HealthTimeoutSec
+    Wait-HttpHealthy -Name "front" -Url $frontUrl -TimeoutSec $HealthTimeoutSec
 }
 
 Write-Step "restart completed"

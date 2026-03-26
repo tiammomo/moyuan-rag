@@ -44,7 +44,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--base-url",
-        default="http://localhost:8000/api/v1",
+        default="http://localhost:38084/api/v1",
         help="API base URL.",
     )
     parser.add_argument(

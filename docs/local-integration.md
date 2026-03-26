@@ -2,6 +2,11 @@
 
 This repository now includes a repeatable local integration flow for the backend document pipeline.
 
+Default host ports used by the wrapper and compose stack:
+
+- frontend: `http://localhost:33004`
+- backend API: `http://localhost:38084`
+
 ## Scripts
 
 - `backend/scripts/local-integration.ps1`

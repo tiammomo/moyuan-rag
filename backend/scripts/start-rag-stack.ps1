@@ -10,6 +10,8 @@ $backendRoot = (Resolve-Path (Join-Path $scriptRoot "..")).Path
 $composeFile = Join-Path $backendRoot "docker-compose.yaml"
 $ensureNetworkScript = Join-Path $scriptRoot "ensure-rag-network.ps1"
 $ensureVolumesScript = Join-Path $scriptRoot "ensure-rag-volumes.ps1"
+$backendUrl = "http://localhost:38084"
+$frontUrl = "http://localhost:33004"
 
 function Write-Step {
     param([string]$Message)
@@ -131,13 +133,13 @@ Wait-ComposeServiceReady -Service "splitter" -TimeoutSec $HealthTimeoutSec
 Wait-ComposeServiceReady -Service "vectorizer" -TimeoutSec $HealthTimeoutSec
 
 Write-Step "waiting for backend and frontend health"
-Wait-HttpHealthy -Name "backend" -Url "http://localhost:8000/health" -TimeoutSec $HealthTimeoutSec
-Wait-HttpHealthy -Name "front" -Url "http://localhost:3000" -TimeoutSec $HealthTimeoutSec
+Wait-HttpHealthy -Name "backend" -Url "$backendUrl/health" -TimeoutSec $HealthTimeoutSec
+Wait-HttpHealthy -Name "front" -Url $frontUrl -TimeoutSec $HealthTimeoutSec
 
 Write-Step "rag stack is ready"
 Write-Output "Endpoints:"
-Write-Output "  backend: http://localhost:8000"
-Write-Output "  frontend: http://localhost:3000"
+Write-Output "  backend: $backendUrl"
+Write-Output "  frontend: $frontUrl"
 Write-Output "  kibana: http://localhost:5601"
 Write-Output "  kafka-ui: http://localhost:8080"
 Write-Output "  attu: http://localhost:8001"

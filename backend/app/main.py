@@ -152,8 +152,8 @@ async def startup_event():
         raise SystemExit(1)
 
     logger.info(f"[START] {settings.APP_NAME} v{settings.APP_VERSION} started")
-    logger.info("[DOCS] http://localhost:8000/docs")
-    logger.info("[HEALTH] http://localhost:8000/health")
+    logger.info(f"[DOCS] {settings.PUBLIC_BACKEND_URL}/docs")
+    logger.info(f"[HEALTH] {settings.PUBLIC_BACKEND_URL}/health")
 
 
 @app.on_event("shutdown")
@@ -175,6 +175,6 @@ if __name__ == "__main__":
     uvicorn.run(
         "app.main:app",
         host="0.0.0.0",
-        port=8000,
+        port=38084,
         reload=settings.DEBUG,
     )

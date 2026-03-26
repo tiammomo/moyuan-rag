@@ -1,4 +1,4 @@
-const publicApiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const publicApiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:38084';
 const internalApiUrl = process.env.INTERNAL_API_URL || publicApiUrl;
 
 function toRemotePattern(urlString) {

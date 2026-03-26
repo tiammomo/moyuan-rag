@@ -18,6 +18,9 @@ $logDir = Join-Path $backendRoot "run-logs"
 $ensureNetworkScript = Join-Path $scriptRoot "ensure-rag-network.ps1"
 $ensureVolumesScript = Join-Path $scriptRoot "ensure-rag-volumes.ps1"
 $startedProcesses = @()
+$backendPort = 38084
+$backendHealthUrl = "http://localhost:$backendPort/health"
+$backendApiBaseUrl = "http://localhost:$backendPort/api/v1"
 
 function Write-Step {
     param([string]$Message)
@@ -68,7 +71,7 @@ function Install-Dependencies {
 
 function Test-BackendHealth {
     try {
-        $response = Invoke-RestMethod "http://localhost:8000/health" -TimeoutSec 5
+        $response = Invoke-RestMethod $backendHealthUrl -TimeoutSec 5
         return $response.status -eq "healthy"
     } catch {
         return $false
@@ -231,7 +234,7 @@ try {
             Write-Step "starting backend api"
             $backendProcess = Start-BackgroundPython `
                 -Name "integration-backend" `
-                -Arguments @("-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000")
+                -Arguments @("-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "$backendPort")
             Wait-BackendHealth -TimeoutSec $HealthTimeoutSec -BackendProcess $backendProcess
         } else {
             Write-Step "backend api is already healthy"
@@ -254,6 +257,7 @@ try {
         Write-Step "running local integration scenario"
         & $venvPython `
             (Join-Path $scriptRoot "run_local_integration.py") `
+            "--base-url" $backendApiBaseUrl `
             "--upload-file" (Resolve-Path $UploadFile).Path `
             "--poll-timeout" $PollTimeoutSec
 

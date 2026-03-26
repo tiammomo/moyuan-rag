@@ -2,6 +2,11 @@
 
 The repository now supports a single Docker Compose entrypoint for both infrastructure and application services.
 
+Default host ports:
+
+- frontend: `http://localhost:33004`
+- backend: `http://localhost:38084`
+
 ## Start the Full Stack
 
 From the repository root:

@@ -294,7 +294,7 @@ erDiagram
 
 ```env
 # API 基础 URL
-NEXT_PUBLIC_API_URL=http://localhost:8000
+NEXT_PUBLIC_API_URL=http://localhost:38084
 
 # 应用名称
 NEXT_PUBLIC_APP_NAME=RAG Assistant
@@ -311,7 +311,7 @@ npm install
 # 启动开发服务器
 npm run dev
 
-# 访问 http://localhost:3000
+# 访问 http://localhost:33004
 ```
 
 ### 生产构建
@@ -331,7 +331,7 @@ npm start
 docker build -t rag-frontend .
 
 # 运行容器
-docker run -p 3000:3000 -e NEXT_PUBLIC_API_URL=http://your-api-server:8000 rag-frontend
+docker run -p 33004:3000 -e NEXT_PUBLIC_API_URL=http://your-api-server:38084 rag-frontend
 ```
 
 ## 开发指南

@@ -74,5 +74,5 @@ If a target volume already has data, the script stops unless you explicitly reru
 4. Run `-Cutover`.
 5. Validate with:
    - `docker compose -f .\backend\docker-compose.yaml ps`
-   - `http://localhost:8000/health`
+- `http://localhost:38084/health`
    - `powershell -ExecutionPolicy Bypass -File .\backend\scripts\local-integration.ps1`

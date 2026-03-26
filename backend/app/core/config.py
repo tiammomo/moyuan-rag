@@ -105,8 +105,10 @@ class Settings(BaseSettings):
     DEFAULT_CHUNK_OVERLAP: int = 50
     
     # ==================== CORS配置 ====================
-    CORS_ORIGINS: str = "http://localhost:3000,http://localhost:8080"
+    CORS_ORIGINS: str = "http://localhost:33004,http://127.0.0.1:33004,http://localhost:8080"
     CORS_ALLOW_CREDENTIALS: bool = True
+    PUBLIC_BACKEND_URL: str = "http://localhost:38084"
+    PUBLIC_FRONTEND_URL: str = "http://localhost:33004"
     
     @property
     def CORS_ORIGINS_LIST(self) -> List[str]:

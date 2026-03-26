@@ -376,7 +376,7 @@ sequenceDiagram
 - **有效期**: 默认 24 小时，通过 `JWT_EXPIRE_HOURS` 配置。
 - **快速验证接口**:
   ```bash
-  curl -X 'POST' 'http://localhost:8000/api/v1/auth/login' \
+  curl -X 'POST' 'http://localhost:38084/api/v1/auth/login' \
     -H 'Content-Type: application/json' \
     -d '{"username": "admin@example.com", "password": "Admin@123"}'
   ```
@@ -401,7 +401,7 @@ docker restart rag-es7
 
 ```bash
 # 开发模式
-python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 38084
 ```
 
 **步骤 2: 启动微服务 Workers** (需在独立终端运行)
@@ -421,8 +421,8 @@ python -m app.workers.vectorizer
 
 ### 8. 访问 API 文档
 
-- **Swagger UI**: http://localhost:8000/docs
-- **ReDoc**: http://localhost:8000/redoc
+- **Swagger UI**: http://localhost:38084/docs
+- **ReDoc**: http://localhost:38084/redoc
 
 ## API 接口概览
 

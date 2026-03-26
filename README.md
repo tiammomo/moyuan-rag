@@ -96,9 +96,9 @@ powershell -ExecutionPolicy Bypass -File .\backend\scripts\start-rag-stack.ps1 -
 
 启动成功后可以访问：
 
-- 前端: `http://localhost:3000`
-- 后端健康检查: `http://localhost:8000/health`
-- Swagger: `http://localhost:8000/docs`
+- 前端: `http://localhost:33004`
+- 后端健康检查: `http://localhost:38084/health`
+- Swagger: `http://localhost:38084/docs`
 - Kafka UI: `http://localhost:8080`
 - Attu: `http://localhost:8001`
 
@@ -143,7 +143,7 @@ cd backend
 python -m venv .venv
 .venv\Scripts\python.exe -m pip install -r requirements.txt
 .venv\Scripts\python.exe -m alembic -c alembic.ini upgrade head
-.venv\Scripts\python.exe -m uvicorn app.main:app --host 0.0.0.0 --port 8000
+.venv\Scripts\python.exe -m uvicorn app.main:app --host 0.0.0.0 --port 38084
 ```
 
 Worker 可分别启动：
@@ -174,15 +174,15 @@ npm run dev
 | `AES_ENCRYPTION_KEY` | API Key 加密密钥 (32位) | 请务必修改 |
 | `ES_HOST` | Elasticsearch 地址 | `http://localhost:9200` |
 | `KAFKA_BOOTSTRAP_SERVERS` | Kafka 地址 | `localhost:9094` |
-| `NEXT_PUBLIC_API_URL` | 前端调用的后端地址 | `http://localhost:8000` |
+| `NEXT_PUBLIC_API_URL` | 前端调用的后端地址 | `http://localhost:38084` |
 
 ---
 
 ## 📖 API 接口文档
 
 后端服务启动后，可通过以下地址查看详细的 Swagger UI 文档：
-- **API 文档**: `http://localhost:8000/docs`
-- **健康检查**: `http://localhost:8000/health`
+- **API 文档**: `http://localhost:38084/docs`
+- **健康检查**: `http://localhost:38084/health`
 
 ---
 

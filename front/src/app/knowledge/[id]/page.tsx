@@ -180,7 +180,7 @@ export default function KnowledgeDetailPage() {
   const [total, setTotal] = useState(0);
 
   // API 基础路径，用于直接展示图片/PDF
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:38084';
   const getPreviewUrl = (_docId?: number, _type: 'preview' | 'thumb' = 'preview') => previewBlobUrl || '';
 
   // 获取带 token 的预览 URL

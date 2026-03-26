@@ -7,6 +7,8 @@ $ErrorActionPreference = "Stop"
 $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $backendRoot = (Resolve-Path (Join-Path $scriptRoot "..")).Path
 $composeFile = Join-Path $backendRoot "docker-compose.yaml"
+$backendUrl = "http://localhost:38084/health"
+$frontUrl = "http://localhost:33004"
 
 function Get-ComposeServices {
     $rawLines = & docker "compose" "-f" $composeFile "ps" "--all" "--format" "json"
@@ -74,8 +76,8 @@ function Get-EndpointStatus {
 
 $services = @(Get-ComposeServices | Sort-Object Service)
 $endpoints = @(
-    (Get-EndpointStatus -Name "backend" -Url "http://localhost:8000/health" -ComposeService "backend" -ServiceList $services)
-    (Get-EndpointStatus -Name "front" -Url "http://localhost:3000" -ComposeService "front" -ServiceList $services)
+    (Get-EndpointStatus -Name "backend" -Url $backendUrl -ComposeService "backend" -ServiceList $services)
+    (Get-EndpointStatus -Name "front" -Url $frontUrl -ComposeService "front" -ServiceList $services)
     (Get-EndpointStatus -Name "kibana" -Url "http://localhost:5601" -ComposeService "kibana" -ServiceList $services)
     (Get-EndpointStatus -Name "kafka-ui" -Url "http://localhost:8080" -ComposeService "kafka-ui" -ServiceList $services)
     (Get-EndpointStatus -Name "attu" -Url "http://localhost:8001" -ComposeService "attu" -ServiceList $services)

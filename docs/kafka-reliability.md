@@ -39,7 +39,7 @@ This document records the reliability hardening completed for the Kafka-backed d
 
 1. Confirm the stack is healthy.
    - `docker compose -f .\backend\docker-compose.yaml ps`
-   - `Invoke-WebRequest -UseBasicParsing http://localhost:8000/health`
+   - `Invoke-WebRequest -UseBasicParsing http://localhost:38084/health`
 2. Inspect document statuses.
    - Failed documents should show an explicit `error_msg`.
    - Queue-dispatch failures now surface as `Upload queue dispatch failed` or `Retry queue dispatch failed`.
