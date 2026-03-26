@@ -246,3 +246,6 @@ powershell -ExecutionPolicy Bypass -File .\backend\scripts\local-integration.ps1
 - [docs/external-delivery-kit.md](docs/external-delivery-kit.md)
 - [docs/rag-workflow-hybrid-retrieval.md](docs/rag-workflow-hybrid-retrieval.md)
 - [docs/rag-interview-qa.md](docs/rag-interview-qa.md)
+- [docs/candidate-resume-template.md](docs/candidate-resume-template.md)
+- [docs/project-pitch-scripts.md](docs/project-pitch-scripts.md)
+- [docs/repo-copy-assets.md](docs/repo-copy-assets.md)

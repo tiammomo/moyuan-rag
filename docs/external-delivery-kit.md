@@ -65,3 +65,9 @@
 - `DLQ`
 - `Idempotency`
 - `Private Deployment`
+
+## 延伸材料
+
+- [candidate-resume-template.md](./candidate-resume-template.md)
+- [project-pitch-scripts.md](./project-pitch-scripts.md)
+- [repo-copy-assets.md](./repo-copy-assets.md)
