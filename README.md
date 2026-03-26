@@ -1,4 +1,4 @@
-# 企业级 RAG 知识问答系统
+﻿# 企业级 RAG 知识问答系统
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python: 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
@@ -237,3 +237,12 @@ powershell -ExecutionPolicy Bypass -File .\backend\scripts\local-integration.ps1
 ## 📝 更新日志
 
 详见 [backend/CHANGELOG.md](backend/CHANGELOG.md)。
+
+
+---
+
+## 对外投递与面试材料
+
+- [docs/external-delivery-kit.md](docs/external-delivery-kit.md)
+- [docs/rag-workflow-hybrid-retrieval.md](docs/rag-workflow-hybrid-retrieval.md)
+- [docs/rag-interview-qa.md](docs/rag-interview-qa.md)
