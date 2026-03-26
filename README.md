@@ -261,3 +261,9 @@ powershell -ExecutionPolicy Bypass -File .\backend\scripts\local-integration.ps1
 - [docs/showcase-architecture-workflow.md](docs/showcase-architecture-workflow.md)
 - [docs/showcase-demo-walkthrough.md](docs/showcase-demo-walkthrough.md)
 - [docs/showcase-capture-checklist.md](docs/showcase-capture-checklist.md)
+
+## Case Study Materials
+
+- [docs/case-study-problem-solution-impact.md](docs/case-study-problem-solution-impact.md)
+- [docs/case-study-business-technical-challenges.md](docs/case-study-business-technical-challenges.md)
+- [docs/case-study-portfolio-summary.md](docs/case-study-portfolio-summary.md)

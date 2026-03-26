@@ -76,3 +76,6 @@ I built an enterprise-grade RAG knowledge platform that goes beyond model integr
 - [showcase-architecture-workflow.md](./showcase-architecture-workflow.md)
 - [showcase-demo-walkthrough.md](./showcase-demo-walkthrough.md)
 - [showcase-capture-checklist.md](./showcase-capture-checklist.md)
+- [case-study-problem-solution-impact.md](./case-study-problem-solution-impact.md)
+- [case-study-business-technical-challenges.md](./case-study-business-technical-challenges.md)
+- [case-study-portfolio-summary.md](./case-study-portfolio-summary.md)
