@@ -1,0 +1,17 @@
+.git
+.idea
+.vscode
+**/__pycache__
+**/.pytest_cache
+**/.ruff_cache
+**/.venv
+**/node_modules
+**/.next
+**/coverage
+**/dist
+**/build
+backend/.env
+backend/data
+backend/logs
+backend/run-logs
+front/.env.local
