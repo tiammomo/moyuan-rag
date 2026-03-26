@@ -249,3 +249,9 @@ powershell -ExecutionPolicy Bypass -File .\backend\scripts\local-integration.ps1
 - [docs/candidate-resume-template.md](docs/candidate-resume-template.md)
 - [docs/project-pitch-scripts.md](docs/project-pitch-scripts.md)
 - [docs/repo-copy-assets.md](docs/repo-copy-assets.md)
+
+## English Delivery Materials
+
+- [docs/english-delivery-kit.md](docs/english-delivery-kit.md)
+- [docs/english-project-pitch-scripts.md](docs/english-project-pitch-scripts.md)
+- [docs/english-repo-copy-assets.md](docs/english-repo-copy-assets.md)

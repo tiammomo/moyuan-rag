@@ -71,3 +71,9 @@
 - [candidate-resume-template.md](./candidate-resume-template.md)
 - [project-pitch-scripts.md](./project-pitch-scripts.md)
 - [repo-copy-assets.md](./repo-copy-assets.md)
+
+## English Materials
+
+- [english-delivery-kit.md](./english-delivery-kit.md)
+- [english-project-pitch-scripts.md](./english-project-pitch-scripts.md)
+- [english-repo-copy-assets.md](./english-repo-copy-assets.md)
