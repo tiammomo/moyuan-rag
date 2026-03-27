@@ -42,11 +42,11 @@
 - [skills-remote-allowlist-runbook.md](./skills-remote-allowlist-runbook.md)
 - [skills-bootstrap-slice.md](./skills-bootstrap-slice.md)
 - [skills-runtime-integration.md](./skills-runtime-integration.md)
-- [skills-admin-console-plan.md](./skills-admin-console-plan.md)
+- [skills-admin-console.md](./skills-admin-console.md)
 
 ## 当前活动规划
 
-- [skills-admin-console-plan.md](./skills-admin-console-plan.md)
+- [skills-remote-install-execution-plan.md](./skills-remote-install-execution-plan.md)
 - [outreach-assets-plan.md](./outreach-assets-plan.md)
 - [teaching-examples-plan.md](./teaching-examples-plan.md)
 

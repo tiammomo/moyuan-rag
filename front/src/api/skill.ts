@@ -1,10 +1,12 @@
 import apiClient from '@/lib/api-client';
 import type {
+  SkillAuditLogListResponse,
   SkillBinding,
   SkillBindingCreate,
   SkillBindingUpdate,
   SkillDetail,
   SkillInstallResponse,
+  SkillInstallTaskListResponse,
   SkillListResponse,
 } from '@/types';
 
@@ -27,6 +29,31 @@ export const skillApi = {
         'Content-Type': 'multipart/form-data',
       },
     });
+    return response.data;
+  },
+
+  getInstallTasks: async (params?: {
+    skip?: number;
+    limit?: number;
+    status_filter?: string;
+    source_type?: string;
+    skill_slug?: string;
+    requested_by_username?: string;
+  }): Promise<SkillInstallTaskListResponse> => {
+    const response = await apiClient.get<SkillInstallTaskListResponse>('/skills/install-tasks', { params });
+    return response.data;
+  },
+
+  getAuditLogs: async (params?: {
+    skip?: number;
+    limit?: number;
+    action_filter?: string;
+    status_filter?: string;
+    actor_username?: string;
+    skill_slug?: string;
+    robot_id?: number;
+  }): Promise<SkillAuditLogListResponse> => {
+    const response = await apiClient.get<SkillAuditLogListResponse>('/skills/audit-logs', { params });
     return response.data;
   },
 

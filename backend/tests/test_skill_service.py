@@ -22,6 +22,25 @@ class FakeRowsResult:
         return self._rows
 
 
+class FakeScalarListResult:
+    def __init__(self, rows):
+        self._rows = rows
+
+    def scalars(self):
+        return self
+
+    def all(self):
+        return self._rows
+
+
+class FakeCountResult:
+    def __init__(self, value):
+        self._value = value
+
+    def scalar_one(self):
+        return self._value
+
+
 class FakeSession:
     def __init__(self, results=None):
         self._results = list(results or [])
@@ -30,6 +49,7 @@ class FakeSession:
         self.commits = 0
         self.rollbacks = 0
         self._next_id = 1
+        self.statements = []
 
     def add(self, obj):
         if getattr(obj, "id", None) is None:
@@ -50,6 +70,7 @@ class FakeSession:
         self.rollbacks += 1
 
     async def execute(self, _stmt):
+        self.statements.append(str(_stmt))
         if self._results:
             return self._results.pop(0)
         return FakeRowsResult([])
@@ -184,3 +205,156 @@ async def test_remote_install_rejected_when_disabled():
     assert exc_info.value.status_code == 403
     assert any(isinstance(item, SkillInstallTask) and item.status == "rejected" for item in db.added)
     assert any(isinstance(item, SkillAuditLog) and item.action == "skill.install_remote" for item in db.added)
+
+
+@pytest.mark.asyncio
+async def test_get_skill_detail_includes_installed_variants(tmp_path: Path):
+    original_root = settings.SKILL_INSTALL_ROOT
+    settings.SKILL_INSTALL_ROOT = str(tmp_path)
+    try:
+        _write_demo_skill(tmp_path, slug="demo-skill", version="0.2.0")
+        old_version_root = tmp_path / "extracted" / "demo-skill" / "0.1.0"
+        old_version_root.mkdir(parents=True, exist_ok=True)
+        (old_version_root / "prompts").mkdir(parents=True, exist_ok=True)
+        (old_version_root / "skill.yaml").write_text(
+            "\n".join(
+                [
+                    "schema_version: 1",
+                    "slug: demo-skill",
+                    "name: Demo Skill",
+                    "version: 0.1.0",
+                    "category: demo",
+                    "description: Older variant",
+                    "entrypoints:",
+                    "  system_prompt: prompts/system.md",
+                ]
+            ),
+            encoding="utf-8",
+        )
+        (old_version_root / "SKILL.md").write_text("# Demo Skill v0.1.0\n", encoding="utf-8")
+        (old_version_root / "prompts" / "system.md").write_text("older guidance", encoding="utf-8")
+
+        db = FakeSession(
+            results=[
+                FakeRowsResult(
+                    [
+                        (
+                            SimpleNamespace(
+                                robot_id=1,
+                                skill_slug="demo-skill",
+                                skill_version="0.2.0",
+                                priority=100,
+                                status="active",
+                                binding_config={},
+                                created_at="2026-03-28T10:00:00+08:00",
+                                updated_at="2026-03-28T10:00:00+08:00",
+                            ),
+                            "Robot A",
+                        ),
+                        (
+                            SimpleNamespace(
+                                robot_id=2,
+                                skill_slug="demo-skill",
+                                skill_version="0.1.0",
+                                priority=200,
+                                status="active",
+                                binding_config={},
+                                created_at="2026-03-28T10:00:00+08:00",
+                                updated_at="2026-03-28T10:00:00+08:00",
+                            ),
+                            "Robot B",
+                        ),
+                    ]
+                )
+            ]
+        )
+        detail = await skill_service.get_skill_detail(db, "demo-skill")
+    finally:
+        settings.SKILL_INSTALL_ROOT = original_root
+
+    assert len(detail.installed_variants) == 2
+    current_variant = next(item for item in detail.installed_variants if item.version == "0.2.0")
+    old_variant = next(item for item in detail.installed_variants if item.version == "0.1.0")
+    assert current_variant.is_current is True
+    assert current_variant.bound_robot_count == 1
+    assert old_variant.is_current is False
+    assert old_variant.bound_robot_ids == [2]
+
+
+@pytest.mark.asyncio
+async def test_list_install_tasks_applies_filters_to_query():
+    task = SimpleNamespace(
+        id=1,
+        source_type="local",
+        package_name="demo.zip",
+        package_url=None,
+        package_checksum="abc",
+        package_signature=None,
+        signature_algorithm=None,
+        requested_by_user_id=1,
+        requested_by_username="admin",
+        status="installed",
+        installed_skill_slug="demo-skill",
+        installed_skill_version="0.2.0",
+        error_message=None,
+        details={"archive_name": "demo.zip"},
+        created_at="2026-03-28T10:00:00+08:00",
+        updated_at="2026-03-28T10:05:00+08:00",
+        finished_at="2026-03-28T10:05:00+08:00",
+    )
+    db = FakeSession(results=[FakeCountResult(1), FakeScalarListResult([task])])
+
+    response = await skill_service.list_install_tasks(
+        db,
+        status_filter="installed",
+        source_type="local",
+        skill_slug="demo-skill",
+        requested_by_username="admin",
+    )
+
+    assert response.total == 1
+    assert response.items[0].installed_skill_slug == "demo-skill"
+    combined_sql = "\n".join(db.statements)
+    assert "rag_skill_install_task.status" in combined_sql
+    assert "rag_skill_install_task.source_type" in combined_sql
+    assert "rag_skill_install_task.installed_skill_slug" in combined_sql
+    assert "rag_skill_install_task.requested_by_username" in combined_sql
+
+
+@pytest.mark.asyncio
+async def test_list_audit_logs_applies_filters_to_query():
+    audit_log = SimpleNamespace(
+        id=9,
+        action="skill.bind",
+        target_type="robot_skill_binding",
+        status="success",
+        actor_user_id=1,
+        actor_username="admin",
+        actor_role="admin",
+        robot_id=7,
+        skill_slug="demo-skill",
+        skill_version="0.2.0",
+        install_task_id=None,
+        message="Bound successfully.",
+        details={"priority": 100},
+        created_at="2026-03-28T10:10:00+08:00",
+    )
+    db = FakeSession(results=[FakeCountResult(1), FakeScalarListResult([audit_log])])
+
+    response = await skill_service.list_audit_logs(
+        db,
+        action_filter="skill.bind",
+        status_filter="success",
+        actor_username="admin",
+        skill_slug="demo-skill",
+        robot_id=7,
+    )
+
+    assert response.total == 1
+    assert response.items[0].skill_slug == "demo-skill"
+    combined_sql = "\n".join(db.statements)
+    assert "rag_skill_audit_log.action" in combined_sql
+    assert "rag_skill_audit_log.status" in combined_sql
+    assert "rag_skill_audit_log.actor_username" in combined_sql
+    assert "rag_skill_audit_log.skill_slug" in combined_sql
+    assert "rag_skill_audit_log.robot_id" in combined_sql

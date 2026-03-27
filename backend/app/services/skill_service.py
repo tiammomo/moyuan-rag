@@ -4,6 +4,7 @@ Filesystem-backed skill registry service for the bootstrap slice.
 
 from __future__ import annotations
 
+from collections import defaultdict
 import hashlib
 import json
 import logging
@@ -35,6 +36,7 @@ from app.schemas.skill import (
     SkillBindingUpdate,
     SkillDetail,
     SkillInstallResponse,
+    SkillInstalledVariantInfo,
     SkillInstallTaskInfo,
     SkillInstallTaskListResponse,
     SkillListItem,
@@ -140,6 +142,47 @@ class SkillService:
 
         return prompts
 
+    def _build_installed_variants(
+        self,
+        *,
+        slug: str,
+        current_record: dict[str, Any],
+        bindings: list[SkillRobotBindingDetail],
+    ) -> list[SkillInstalledVariantInfo]:
+        skill_root = self.extracted_dir / slug
+        if not skill_root.exists():
+            return []
+
+        bound_ids_by_version: dict[str, list[int]] = defaultdict(list)
+        for binding in bindings:
+            bound_ids_by_version[binding.skill_version].append(binding.robot_id)
+
+        variants: list[SkillInstalledVariantInfo] = []
+        for version_dir in sorted((path for path in skill_root.iterdir() if path.is_dir()), key=lambda item: item.name, reverse=True):
+            manifest_path = version_dir / "skill.yaml"
+            if not manifest_path.exists():
+                continue
+
+            manifest = self._read_manifest(manifest_path)
+            version = str(manifest.get("version") or version_dir.name)
+            prompt_keys = self._build_prompt_keys(manifest)
+            installed_at = current_record.get("installed_at") if current_record.get("version") == version else None
+            variants.append(
+                SkillInstalledVariantInfo(
+                    version=version,
+                    install_path=version_dir.relative_to(self.install_root).as_posix(),
+                    manifest_path=manifest_path.relative_to(self.install_root).as_posix(),
+                    readme_available=(version_dir / "SKILL.md").exists(),
+                    is_current=current_record.get("version") == version,
+                    installed_at=installed_at,
+                    prompt_keys=prompt_keys,
+                    bound_robot_count=len(bound_ids_by_version[version]),
+                    bound_robot_ids=sorted(bound_ids_by_version[version]),
+                )
+            )
+
+        return variants
+
     def _build_binding_detail(
         self,
         binding: RobotSkillBinding,
@@ -226,6 +269,11 @@ class SkillService:
             readme_content=self._read_text(readme_path),
             prompts=self._build_prompt_entries(manifest, install_dir),
             bound_robots=bindings,
+            installed_variants=self._build_installed_variants(
+                slug=slug,
+                current_record=record,
+                bindings=bindings,
+            ),
         )
 
     def _sha256(self, content: bytes) -> str:
@@ -430,6 +478,9 @@ class SkillService:
         skip: int = 0,
         limit: int = 50,
         status_filter: str | None = None,
+        source_type: str | None = None,
+        skill_slug: str | None = None,
+        requested_by_username: str | None = None,
     ) -> SkillInstallTaskListResponse:
         stmt = select(SkillInstallTask).order_by(SkillInstallTask.created_at.desc())
         count_stmt = select(func.count(SkillInstallTask.id))
@@ -437,6 +488,15 @@ class SkillService:
         if status_filter:
             stmt = stmt.where(SkillInstallTask.status == status_filter)
             count_stmt = count_stmt.where(SkillInstallTask.status == status_filter)
+        if source_type:
+            stmt = stmt.where(SkillInstallTask.source_type == source_type)
+            count_stmt = count_stmt.where(SkillInstallTask.source_type == source_type)
+        if skill_slug:
+            stmt = stmt.where(SkillInstallTask.installed_skill_slug == skill_slug)
+            count_stmt = count_stmt.where(SkillInstallTask.installed_skill_slug == skill_slug)
+        if requested_by_username:
+            stmt = stmt.where(SkillInstallTask.requested_by_username == requested_by_username)
+            count_stmt = count_stmt.where(SkillInstallTask.requested_by_username == requested_by_username)
 
         total_result = await db.execute(count_stmt)
         result = await db.execute(stmt.offset(skip).limit(limit))
@@ -450,6 +510,10 @@ class SkillService:
         skip: int = 0,
         limit: int = 100,
         action_filter: str | None = None,
+        status_filter: str | None = None,
+        actor_username: str | None = None,
+        skill_slug: str | None = None,
+        robot_id: int | None = None,
     ) -> SkillAuditLogListResponse:
         stmt = select(SkillAuditLog).order_by(SkillAuditLog.created_at.desc())
         count_stmt = select(func.count(SkillAuditLog.id))
@@ -457,6 +521,18 @@ class SkillService:
         if action_filter:
             stmt = stmt.where(SkillAuditLog.action == action_filter)
             count_stmt = count_stmt.where(SkillAuditLog.action == action_filter)
+        if status_filter:
+            stmt = stmt.where(SkillAuditLog.status == status_filter)
+            count_stmt = count_stmt.where(SkillAuditLog.status == status_filter)
+        if actor_username:
+            stmt = stmt.where(SkillAuditLog.actor_username == actor_username)
+            count_stmt = count_stmt.where(SkillAuditLog.actor_username == actor_username)
+        if skill_slug:
+            stmt = stmt.where(SkillAuditLog.skill_slug == skill_slug)
+            count_stmt = count_stmt.where(SkillAuditLog.skill_slug == skill_slug)
+        if robot_id is not None:
+            stmt = stmt.where(SkillAuditLog.robot_id == robot_id)
+            count_stmt = count_stmt.where(SkillAuditLog.robot_id == robot_id)
 
         total_result = await db.execute(count_stmt)
         result = await db.execute(stmt.offset(skip).limit(limit))

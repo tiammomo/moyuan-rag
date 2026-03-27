@@ -51,11 +51,24 @@ class SkillRobotBindingDetail(BaseModel):
     updated_at: datetime
 
 
+class SkillInstalledVariantInfo(BaseModel):
+    version: str
+    install_path: str
+    manifest_path: str
+    readme_available: bool = False
+    is_current: bool = False
+    installed_at: Optional[str] = None
+    prompt_keys: List[str] = Field(default_factory=list)
+    bound_robot_count: int = 0
+    bound_robot_ids: List[int] = Field(default_factory=list)
+
+
 class SkillDetail(SkillListItem):
     manifest: Dict[str, Any] = Field(default_factory=dict)
     readme_content: Optional[str] = None
     prompts: List[SkillPromptFile] = Field(default_factory=list)
     bound_robots: List[SkillRobotBindingDetail] = Field(default_factory=list)
+    installed_variants: List[SkillInstalledVariantInfo] = Field(default_factory=list)
 
 
 class SkillInstallResponse(BaseModel):

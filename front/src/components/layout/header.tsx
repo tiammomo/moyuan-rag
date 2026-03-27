@@ -4,21 +4,23 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-  Menu,
-  X,
-  MessageSquare,
-  Database,
   Bot,
-  Settings,
-  Users,
+  ChevronDown,
+  Database,
   Key,
   LogOut,
+  Menu,
+  MessageSquare,
   Moon,
-  Sun,
-  ChevronDown,
   Search,
+  Settings,
+  ShieldCheck,
+  Sun,
+  Users,
   Wrench,
+  X,
 } from 'lucide-react';
+
 import { cn } from '@/lib/utils';
 import { useAuthStore, useThemeStore } from '@/stores';
 
@@ -38,6 +40,7 @@ const navItems: NavItem[] = [
   { name: '用户管理', href: '/admin/users', icon: <Users className="h-5 w-5" />, adminOnly: true },
   { name: 'LLM 配置', href: '/admin/llms', icon: <Settings className="h-5 w-5" />, adminOnly: true },
   { name: 'API 密钥', href: '/admin/apikeys', icon: <Key className="h-5 w-5" />, adminOnly: true },
+  { name: 'Skills 治理', href: '/admin/skills', icon: <ShieldCheck className="h-5 w-5" />, adminOnly: true },
 ];
 
 export function Header() {
@@ -64,7 +67,9 @@ export function Header() {
     window.location.href = '/auth/login';
   };
 
-  if (!mounted) return null;
+  if (!mounted) {
+    return null;
+  }
 
   return (
     <header className="sticky top-0 z-40 border-b border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">

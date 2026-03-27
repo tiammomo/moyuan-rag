@@ -37,6 +37,7 @@
 - **MiniMax 大模型接入**: 已实测支持通过 Anthropic 兼容接口接入 MiniMax 作为聊天模型，完成真实 RAG 问答。
 - **Skills Runtime 能力**: 已支持本地 skill 注册表、机器人技能绑定与排序、运行时 prompt 注入，以及聊天页和机器人页的技能展示。
 - **Skills 治理强化**: 已支持 install task 持久化、操作审计日志、远端来源白名单与 checksum / signature 安全门槛，为后续受控 marketplace 做准备。
+- **Skills 管理后台**: 已提供 `/admin/skills` 治理台，用于查看安装任务、审计日志、版本差异、漂移绑定和回滚准备信息。
 - **SiliconFlow 深度集成**: 针对大模型 Embedding 接口提供自动分批、指数退火重试及详细错误诊断。
 
 ---
@@ -122,6 +123,7 @@ python backend/scripts/rag_stack.py start --build
 - 后端健康检查: `http://localhost:38084/health`
 - Swagger: `http://localhost:38084/docs`
 - Skills 列表页: `http://localhost:33004/skills`
+- Skills 管理后台: `http://localhost:33004/admin/skills`
 - Kafka UI: `http://localhost:8080`
 - Attu: `http://localhost:8001`
 
@@ -318,7 +320,8 @@ python backend/scripts/local_integration.py --start-infra
 - [docs/skills-remote-allowlist-runbook.md](docs/skills-remote-allowlist-runbook.md)
 - [docs/skills-bootstrap-slice.md](docs/skills-bootstrap-slice.md)
 - [docs/skills-runtime-integration.md](docs/skills-runtime-integration.md)
-- [docs/skills-admin-console-plan.md](docs/skills-admin-console-plan.md)
+- [docs/skills-admin-console.md](docs/skills-admin-console.md)
+- [docs/skills-remote-install-execution-plan.md](docs/skills-remote-install-execution-plan.md)
 
 ## RAG 教学文档
 

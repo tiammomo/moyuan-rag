@@ -21,13 +21,20 @@ class MilvusClient:
     """Milvus客户端封装类 (异步封装)"""
     
     def __init__(self):
-        """初始化Milvus连接"""
-        # 建立同步连接
+        """初始化Milvus客户端，连接在首次使用时建立。"""
+        self._connected = False
+
+    def _ensure_connected(self):
+        """在首次真正访问 Milvus 时建立连接，避免导入期副作用。"""
+        if self._connected:
+            return
+
         connections.connect(
             alias="default",
             host=settings.MILVUS_HOST,
             port=settings.MILVUS_PORT
         )
+        self._connected = True
         logger.info(f"连接Milvus: {settings.MILVUS_HOST}:{settings.MILVUS_PORT}")
     
     def _truncate_to_bytes(self, text: str, max_bytes: int) -> str:
@@ -51,6 +58,7 @@ class MilvusClient:
         return await asyncio.to_thread(self._create_collection_sync, collection_name, dim, description)
 
     def _create_collection_sync(self, collection_name: str, dim: int, description: str) -> Collection:
+        self._ensure_connected()
         # 检查集合是否已存在
         if utility.has_collection(collection_name):
             return Collection(collection_name)
@@ -91,6 +99,7 @@ class MilvusClient:
         return await asyncio.to_thread(self._insert_vectors_sync, collection_name, data)
 
     def _insert_vectors_sync(self, collection_name: str, data: List[Dict[str, Any]]) -> bool:
+        self._ensure_connected()
         collection = Collection(collection_name)
         
         chunk_ids = [item["chunk_id"] for item in data]
@@ -130,6 +139,7 @@ class MilvusClient:
         top_k: int = 5,
         document_ids: Optional[List[int]] = None
     ) -> List[Dict[str, Any]]:
+        self._ensure_connected()
         collection = Collection(collection_name)
         collection.load()
         
@@ -172,6 +182,7 @@ class MilvusClient:
         return await asyncio.to_thread(self._delete_by_document_sync, collection_name, document_id)
 
     def _delete_by_document_sync(self, collection_name: str, document_id: int) -> bool:
+        self._ensure_connected()
         collection = Collection(collection_name)
         collection.load()
         expr = f"document_id == {document_id}"
@@ -186,6 +197,7 @@ class MilvusClient:
         return await asyncio.to_thread(self._drop_collection_sync, collection_name)
 
     def _drop_collection_sync(self, collection_name: str) -> bool:
+        self._ensure_connected()
         if utility.has_collection(collection_name):
             utility.drop_collection(collection_name)
             logger.info(f"删除Milvus集合: {collection_name}")
@@ -199,6 +211,7 @@ class MilvusClient:
         return await asyncio.to_thread(self._get_collection_stats_sync, collection_name)
 
     def _get_collection_stats_sync(self, collection_name: str) -> Dict[str, Any]:
+        self._ensure_connected()
         if not utility.has_collection(collection_name):
             return {"exists": False}
         
@@ -213,7 +226,9 @@ class MilvusClient:
     
     async def close(self):
         """关闭连接 (异步封装)"""
-        await asyncio.to_thread(connections.disconnect, "default")
+        if self._connected:
+            await asyncio.to_thread(connections.disconnect, "default")
+            self._connected = False
 
 
 # 创建全局Milvus客户端实例

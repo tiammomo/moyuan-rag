@@ -63,11 +63,22 @@ async def list_install_tasks(
     skip: int = Query(default=0, ge=0),
     limit: int = Query(default=50, ge=1, le=200),
     status_filter: str | None = Query(default=None),
+    source_type: str | None = Query(default=None),
+    skill_slug: str | None = Query(default=None),
+    requested_by_username: str | None = Query(default=None),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
     _ = current_user
-    return await skill_service.list_install_tasks(db, skip=skip, limit=limit, status_filter=status_filter)
+    return await skill_service.list_install_tasks(
+        db,
+        skip=skip,
+        limit=limit,
+        status_filter=status_filter,
+        source_type=source_type,
+        skill_slug=skill_slug,
+        requested_by_username=requested_by_username,
+    )
 
 
 @router.get("/audit-logs", response_model=SkillAuditLogListResponse, summary="List skill audit logs")
@@ -75,11 +86,24 @@ async def list_audit_logs(
     skip: int = Query(default=0, ge=0),
     limit: int = Query(default=100, ge=1, le=200),
     action_filter: str | None = Query(default=None),
+    status_filter: str | None = Query(default=None),
+    actor_username: str | None = Query(default=None),
+    skill_slug: str | None = Query(default=None),
+    robot_id: int | None = Query(default=None),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
     _ = current_user
-    return await skill_service.list_audit_logs(db, skip=skip, limit=limit, action_filter=action_filter)
+    return await skill_service.list_audit_logs(
+        db,
+        skip=skip,
+        limit=limit,
+        action_filter=action_filter,
+        status_filter=status_filter,
+        actor_username=actor_username,
+        skill_slug=skill_slug,
+        robot_id=robot_id,
+    )
 
 
 @router.get("/{skill_slug}", summary="Get installed skill detail")

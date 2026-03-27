@@ -60,4 +60,5 @@ Reason:
 
 The next operator-facing phase is documented in:
 - [skills-governance-hardening.md](./skills-governance-hardening.md)
-- [skills-admin-console-plan.md](./skills-admin-console-plan.md)
+- [skills-admin-console.md](./skills-admin-console.md)
+- [skills-remote-install-execution-plan.md](./skills-remote-install-execution-plan.md)

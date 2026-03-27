@@ -49,4 +49,5 @@ This keeps the governance trail in place without enabling unsafe package ingesti
 - [skills-remote-install-security.md](./skills-remote-install-security.md)
 - [skills-versioning-and-rollback.md](./skills-versioning-and-rollback.md)
 - [skills-remote-allowlist-runbook.md](./skills-remote-allowlist-runbook.md)
-- [skills-admin-console-plan.md](./skills-admin-console-plan.md)
+- [skills-admin-console.md](./skills-admin-console.md)
+- [skills-remote-install-execution-plan.md](./skills-remote-install-execution-plan.md)
