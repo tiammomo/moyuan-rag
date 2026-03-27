@@ -8,6 +8,24 @@
 
 ---
 
+## 📸 实际运行截图
+
+以下截图来自本地 compose 环境的真实运行结果，并通过 Playwright 采集：
+
+### 1. 知识库总览
+
+![知识库总览](docs/assets/readme/rag-knowledge-overview.png)
+
+### 2. 文档入库完成
+
+![文档入库完成](docs/assets/readme/rag-document-completed.png)
+
+### 3. MiniMax 驱动的 RAG 对话
+
+![MiniMax RAG 对话](docs/assets/readme/rag-chat-minimax-answer.png)
+
+---
+
 ## 🚀 项目特性
 
 - **全异步后端**: 基于 FastAPI 实现的高性能异步 API，确保高并发处理能力。
@@ -16,6 +34,7 @@
 - **混合检索策略**: 结合 Milvus 向量检索与 Elasticsearch 全文检索（IK 分词），大幅提升召回精度。
 - **文档全生命周期管理**: 支持 PDF、Word、TXT、Markdown、HTML 等多种格式的自动化处理。
 - **微服务 Worker 架构**: 文档解析、切片、向量化均通过 Kafka 消息队列异步解耦处理。
+- **MiniMax 大模型接入**: 已实测支持通过 Anthropic 兼容接口接入 MiniMax 作为聊天模型，完成真实 RAG 问答。
 - **SiliconFlow 深度集成**: 针对大模型 Embedding 接口提供自动分批、指数退火重试及详细错误诊断。
 
 ---
@@ -133,6 +152,7 @@ powershell -ExecutionPolicy Bypass -File .\backend\scripts\stop-rag-stack.ps1
 - [docs/full-stack-compose.md](docs/full-stack-compose.md)
 - [docs/compose-troubleshooting.md](docs/compose-troubleshooting.md)
 - [docs/local-integration.md](docs/local-integration.md)
+- [docs/minimax-anthropic-setup.md](docs/minimax-anthropic-setup.md)
 
 ### 4. 手工开发模式
 
@@ -162,6 +182,27 @@ cd front
 npm install
 npm run dev
 ```
+
+---
+
+## 🤖 MiniMax 接入方式
+
+项目当前已经验证通过 MiniMax 的 Anthropic 兼容接口作为聊天模型接入 RAG 主链路。
+
+推荐配置方式：
+
+1. 在管理后台的 `LLM 配置` 中新增一个 `chat` 类型模型。
+2. `provider` 填 `anthropic`。
+3. `model_name` 填 `MiniMax-M2.5`，或者使用 MiniMax 兼容返回的 Claude 别名模型。
+4. `base_url` 填 `https://api.minimaxi.com/anthropic`。
+5. 在 `API Keys` 中为该 LLM 绑定 MiniMax 的访问密钥。
+6. 在机器人配置中把这个 chat LLM 绑定到目标知识库机器人上。
+
+当前后端会自动把 `https://api.minimaxi.com/anthropic` 归一化到 `/v1/messages`，并按 Anthropic 原生格式包装消息体，因此可以直接使用兼容地址而不需要手动补完整接口路径。
+
+更详细的接入说明、限制和排障见：
+
+- [docs/minimax-anthropic-setup.md](docs/minimax-anthropic-setup.md)
 
 ---
 
@@ -245,6 +286,7 @@ powershell -ExecutionPolicy Bypass -File .\backend\scripts\local-integration.ps1
 
 - [docs/README.md](docs/README.md)
 - [docs/rag-workflow-hybrid-retrieval.md](docs/rag-workflow-hybrid-retrieval.md)
+- [docs/minimax-anthropic-setup.md](docs/minimax-anthropic-setup.md)
 
 ## RAG 教学文档
 

@@ -1,10 +1,10 @@
 # Docs Index
 
-这个目录存放项目文档，当前按“教学、运维、投递与面试”三类来组织。
+这个目录存放项目文档，当前按“教学、模型接入、运维联调、对外投递与案例展示”来组织。
 
 ## 教学文档
 
-如果你想系统理解这个项目里的 RAG 设计，建议从这里开始：
+如果你想系统理解这个项目里的 RAG 设计，建议按下面顺序阅读：
 
 - [teaching/README.md](./teaching/README.md)
 - [teaching/01-rag-overview.md](./teaching/01-rag-overview.md)
@@ -16,6 +16,12 @@
 - [teaching/07-architecture-and-sequence-diagrams.md](./teaching/07-architecture-and-sequence-diagrams.md)
 - [teaching/08-simplified-data-flow.md](./teaching/08-simplified-data-flow.md)
 - [rag-workflow-hybrid-retrieval.md](./rag-workflow-hybrid-retrieval.md)
+
+## 模型接入
+
+如果你要给 RAG 机器人接入外部大模型，可以从这里开始：
+
+- [minimax-anthropic-setup.md](./minimax-anthropic-setup.md)
 
 ## 运维与联调
 
