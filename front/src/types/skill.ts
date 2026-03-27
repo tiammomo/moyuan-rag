@@ -27,9 +27,13 @@ export interface SkillBinding {
   robot_id: number;
   robot_name?: string;
   skill_slug: string;
+  skill_name?: string;
   skill_version: string;
+  category?: string;
+  skill_description?: string;
   priority: number;
   status: string;
+  prompt_keys: string[];
   binding_config: Record<string, unknown>;
   created_at: string;
   updated_at: string;

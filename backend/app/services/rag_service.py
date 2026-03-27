@@ -1,6 +1,6 @@
-"""
-RAG service for retrieval and answer generation.
-"""
+"""RAG service for retrieval and answer generation."""
+
+from __future__ import annotations
 
 import asyncio
 import logging
@@ -21,11 +21,13 @@ from app.models.llm import LLM
 from app.models.robot import Robot
 from app.schemas.chat import ChatResponse, RetrievedContext
 from app.services.context_manager import context_manager
+from app.services.skill_service import skill_service
 from app.utils.embedding import get_embedding_model
 from app.utils.es_client import es_client
 from app.utils.milvus_client import milvus_client
 from app.utils.redis_client import redis_client
 from app.utils.reranker import reranker
+
 
 logger = logging.getLogger(__name__)
 
@@ -81,9 +83,7 @@ class RAGService:
         top_k: int = 5,
     ) -> List[Dict[str, Any]]:
         try:
-            knowledge_result = await db.execute(
-                select(Knowledge).where(Knowledge.id.in_(knowledge_ids))
-            )
+            knowledge_result = await db.execute(select(Knowledge).where(Knowledge.id.in_(knowledge_ids)))
             knowledges = knowledge_result.scalars().all()
             if not knowledges:
                 return []
@@ -94,11 +94,7 @@ class RAGService:
 
             all_results: List[Dict[str, Any]] = []
             for embed_llm_id, grouped_items in grouped_knowledges.items():
-                query_vector = await self._build_query_vector(
-                    db=db,
-                    embed_llm_id=embed_llm_id,
-                    query=query,
-                )
+                query_vector = await self._build_query_vector(db=db, embed_llm_id=embed_llm_id, query=query)
                 if query_vector is None:
                     continue
 
@@ -115,7 +111,7 @@ class RAGService:
                 for index, result in enumerate(task_results):
                     if isinstance(result, Exception):
                         logger.error(
-                            "知识库 %s 向量检索失败: %s",
+                            "Vector retrieval failed for knowledge %s: %s",
                             grouped_items[index].id,
                             result,
                         )
@@ -135,11 +131,14 @@ class RAGService:
             all_results.sort(key=lambda item: item["score"], reverse=True)
             return all_results[:top_k]
         except Exception as exc:
-            logger.error(f"异步向量检索失败: {exc}")
+            logger.error("Async vector retrieval failed: %s", exc)
             return []
 
     async def _build_query_vector(
-        self, db: AsyncSession, embed_llm_id: int, query: str
+        self,
+        db: AsyncSession,
+        embed_llm_id: int,
+        query: str,
     ) -> Optional[List[float]]:
         if embed_llm_id == 0:
             embedding_model = get_embedding_model()
@@ -166,7 +165,10 @@ class RAGService:
         return embedding_model.encode(query)[0].tolist()
 
     async def _keyword_retrieve_async(
-        self, knowledge_ids: List[int], query: str, top_k: int
+        self,
+        knowledge_ids: List[int],
+        query: str,
+        top_k: int,
     ) -> List[Dict[str, Any]]:
         try:
             results = await self.es_client.search_chunks(query, knowledge_ids, top_k)
@@ -181,7 +183,7 @@ class RAGService:
                 for item in results
             ]
         except Exception as exc:
-            logger.error(f"关键词检索失败: {exc}")
+            logger.error("Keyword retrieval failed: %s", exc)
             return []
 
     async def _merge_results_async(
@@ -230,7 +232,10 @@ class RAGService:
 
         sorted_items = sorted(
             merged_scores.values(),
-            key=lambda item: (item["rrf_score"], self._blend_retrieval_score(item["vector_score"], item["keyword_score"])),
+            key=lambda item: (
+                item["rrf_score"],
+                self._blend_retrieval_score(item["vector_score"], item["keyword_score"]),
+            ),
             reverse=True,
         )[:top_k]
 
@@ -255,14 +260,15 @@ class RAGService:
                         filename=chunk_data.get("filename", "unknown"),
                         content=chunk_data.get("content", ""),
                         score=self._blend_retrieval_score(
-                            item["vector_score"], item["keyword_score"]
+                            item["vector_score"],
+                            item["keyword_score"],
                         ),
                         source=item["source"],
                     )
                 )
             return contexts
         except Exception as exc:
-            logger.error(f"批量获取检索内容失败: {exc}")
+            logger.error("Failed to resolve merged retrieval chunks: %s", exc)
             return []
 
     async def _rerank_results(
@@ -281,9 +287,7 @@ class RAGService:
 
         try:
             if rerank_llm and rerank_llm.base_url:
-                ak_stmt = select(APIKey).where(
-                    APIKey.llm_id == rerank_llm.id, APIKey.status == 1
-                )
+                ak_stmt = select(APIKey).where(APIKey.llm_id == rerank_llm.id, APIKey.status == 1)
                 ak_result = await db.execute(ak_stmt)
                 apikey = ak_result.scalar_one_or_none()
                 api_key = api_key_crypto.decrypt(apikey.api_key_encrypted) if apikey else ""
@@ -322,15 +326,9 @@ class RAGService:
                 return final_results or merged_results[:top_k]
 
             loop = asyncio.get_running_loop()
-            rerank_pairs = await loop.run_in_executor(
-                None,
-                reranker.rerank,
-                query,
-                docs,
-                top_k,
-            )
+            rerank_pairs = await loop.run_in_executor(None, reranker.rerank, query, docs, top_k)
 
-            final_results = []
+            final_results: List[RetrievedContext] = []
             for result_index, raw_score in rerank_pairs:
                 if result_index >= len(merged_results):
                     continue
@@ -341,7 +339,7 @@ class RAGService:
 
             return final_results or merged_results[:top_k]
         except Exception as exc:
-            logger.error(f"重排序失败，回退原始召回结果: {exc}")
+            logger.error("Rerank failed, falling back to merged results: %s", exc)
             return merged_results[:top_k]
 
     def _blend_retrieval_score(self, vector_score: float, keyword_score: float) -> float:
@@ -373,6 +371,80 @@ class RAGService:
             return 0.0
         return max(0.0, min(score, 1.0))
 
+    async def build_runtime_skill_bundle(self, db: AsyncSession, robot: Robot) -> dict[str, Any]:
+        bundle = await skill_service.get_runtime_skill_bundle(db, robot.id)
+        return {
+            "active_skills": bundle.active_skills,
+            "system_prompts": bundle.system_prompts,
+            "retrieval_prompts": bundle.retrieval_prompts,
+            "answer_prompts": bundle.answer_prompts,
+        }
+
+    def apply_retrieval_skill_guidance(
+        self,
+        query: str,
+        runtime_bundle: dict[str, Any] | None = None,
+    ) -> str:
+        if not runtime_bundle:
+            return query
+
+        retrieval_prompts = runtime_bundle.get("retrieval_prompts") or []
+        if not retrieval_prompts:
+            return query
+
+        return (
+            f"{query}\n\n"
+            "## Skill Retrieval Guidance\n"
+            f"{chr(10).join(retrieval_prompts)}"
+        )
+
+    def build_chat_messages(
+        self,
+        robot: Robot,
+        question: str,
+        contexts: List[RetrievedContext],
+        history_messages: List[Dict[str, str]] | None = None,
+        runtime_bundle: dict[str, Any] | None = None,
+    ) -> List[Dict[str, str]]:
+        context_text = (
+            "\n\n".join(
+                [
+                    f"[参考{i + 1}] {context.filename}\n{context.content}"
+                    for i, context in enumerate(contexts)
+                ]
+            )
+            if contexts
+            else "未找到相关的知识库内容。"
+        )
+
+        system_sections = [robot.system_prompt or "You are a helpful assistant."]
+        if runtime_bundle:
+            system_sections.extend(runtime_bundle.get("system_prompts") or [])
+            answer_prompts = runtime_bundle.get("answer_prompts") or []
+            if answer_prompts:
+                system_sections.append("## Skill Answer Guidance\n" + "\n\n".join(answer_prompts))
+
+        messages: List[Dict[str, str]] = [
+            {
+                "role": "system",
+                "content": "\n\n".join(section for section in system_sections if section).strip(),
+            }
+        ]
+        if history_messages:
+            messages.extend(history_messages)
+
+        user_content = (
+            "## 知识库上下文\n"
+            f"{context_text}\n\n"
+            "## 用户问题\n"
+            f"{question}\n\n"
+            "请基于知识库内容回答用户问题。"
+            "如果无法从知识库中找到依据，请明确说明。"
+            "如果使用了上下文，请优先在句子末尾标注类似[参考1]的引用。"
+        )
+        messages.append({"role": "user", "content": user_content})
+        return messages
+
     async def _call_llm_api(
         self,
         db: AsyncSession,
@@ -381,19 +453,15 @@ class RAGService:
         temperature: float = 0.7,
         max_tokens: int = 2000,
     ) -> Dict[str, Any]:
-        llm_result = await db.execute(
-            select(LLM).where(LLM.id == llm_id, LLM.status == 1)
-        )
+        llm_result = await db.execute(select(LLM).where(LLM.id == llm_id, LLM.status == 1))
         llm = llm_result.scalar_one_or_none()
         if not llm:
-            raise ValueError(f"LLM 模型不存在或已禁用: {llm_id}")
+            raise ValueError(f"LLM model does not exist or is disabled: {llm_id}")
 
-        apikey_result = await db.execute(
-            select(APIKey).where(APIKey.llm_id == llm_id, APIKey.status == 1)
-        )
+        apikey_result = await db.execute(select(APIKey).where(APIKey.llm_id == llm_id, APIKey.status == 1))
         apikey = apikey_result.scalar_one_or_none()
         if not apikey:
-            raise ValueError(f"LLM {llm.name} 没有可用的 API Key")
+            raise ValueError(f"LLM {llm.name} has no available API key")
 
         api_key = api_key_crypto.decrypt(apikey.api_key_encrypted)
         provider = LLMFactory.get_provider(
@@ -425,42 +493,18 @@ class RAGService:
         robot: Robot,
         question: str,
         contexts: List[RetrievedContext],
-        session_id: str = None,
-        history_messages: List[Dict[str, str]] = None,
+        session_id: str | None = None,
+        history_messages: List[Dict[str, str]] | None = None,
+        runtime_bundle: dict[str, Any] | None = None,
     ) -> ChatResponse:
         start_time = time.time()
-
-        context_text = (
-            "\n\n".join(
-                [
-                    f"[参考{i + 1}] {context.filename}\n{context.content}"
-                    for i, context in enumerate(contexts)
-                ]
-            )
-            if contexts
-            else "未找到相关的知识库内容。"
+        messages = self.build_chat_messages(
+            robot=robot,
+            question=question,
+            contexts=contexts,
+            history_messages=history_messages,
+            runtime_bundle=runtime_bundle,
         )
-
-        messages: List[Dict[str, str]] = []
-        messages.append(
-            {
-                "role": "system",
-                "content": robot.system_prompt or "You are a helpful assistant.",
-            }
-        )
-        if history_messages:
-            messages.extend(history_messages)
-
-        user_content = (
-            "## 知识库上下文\n"
-            f"{context_text}\n\n"
-            "## 用户问题\n"
-            f"{question}\n\n"
-            "请基于知识库内容回答用户问题。"
-            "如果无法从知识库中找到依据，请明确说明。"
-            "如果使用了上下文，请优先在句子末尾标注类似 [参考1] 的引用。"
-        )
-        messages.append({"role": "user", "content": user_content})
 
         try:
             llm_result = await self._call_llm_api(
@@ -473,7 +517,7 @@ class RAGService:
             answer = llm_result["answer"]
             token_usage = llm_result["token_usage"]
         except Exception as exc:
-            logger.error(f"LLM 调用失败: {exc}")
+            logger.error("LLM invocation failed: %s", exc)
             answer = f"抱歉，生成回答时出错: {exc}"
             token_usage = {}
 
@@ -486,6 +530,7 @@ class RAGService:
             question=question,
             answer=answer,
             contexts=contexts,
+            active_skills=(runtime_bundle or {}).get("active_skills", []),
             token_usage=token_usage,
             response_time=response_time,
         )
@@ -496,9 +541,11 @@ class RAGService:
         robot: Robot,
         knowledge_ids: List[int],
         question: str,
-        session_id: str = None,
-        user_id: int = None,
+        session_id: str | None = None,
+        user_id: int | None = None,
     ) -> ChatResponse:
+        runtime_bundle = await self.build_runtime_skill_bundle(db, robot)
+
         retrieval_query = question
         if session_id:
             try:
@@ -507,8 +554,10 @@ class RAGService:
                     current_query=question,
                 )
             except Exception as exc:
-                logger.warning(f"查询改写失败，回退原始问题: {exc}")
+                logger.warning("Query rewrite failed, falling back to the raw question: %s", exc)
                 retrieval_query = question
+
+        retrieval_query = self.apply_retrieval_skill_guidance(retrieval_query, runtime_bundle)
 
         contexts = await self.hybrid_retrieve(
             db=db,
@@ -535,6 +584,7 @@ class RAGService:
                 {"role": message["role"], "content": message["content"]}
                 for message in history_messages
             ],
+            runtime_bundle=runtime_bundle,
         )
 
         if session_id:

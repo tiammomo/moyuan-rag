@@ -35,7 +35,7 @@
 - **文档全生命周期管理**: 支持 PDF、Word、TXT、Markdown、HTML 等多种格式的自动化处理。
 - **微服务 Worker 架构**: 文档解析、切片、向量化与召回评测均通过 Kafka Worker 异步解耦处理。
 - **MiniMax 大模型接入**: 已实测支持通过 Anthropic 兼容接口接入 MiniMax 作为聊天模型，完成真实 RAG 问答。
-- **Skills Bootstrap 能力**: 已支持本地 skill 注册表、只读技能页、机器人技能绑定 API，以及本地 zip 包安装入口。
+- **Skills Runtime 能力**: 已支持本地 skill 注册表、机器人技能绑定与排序、运行时 prompt 注入，以及聊天页和机器人页的技能展示。
 - **SiliconFlow 深度集成**: 针对大模型 Embedding 接口提供自动分批、指数退火重试及详细错误诊断。
 
 ---
@@ -307,7 +307,8 @@ powershell -ExecutionPolicy Bypass -File .\backend\scripts\local-integration.ps1
 - [docs/skills-architecture.md](docs/skills-architecture.md)
 - [docs/skills-remote-install-security.md](docs/skills-remote-install-security.md)
 - [docs/skills-bootstrap-slice.md](docs/skills-bootstrap-slice.md)
-- [docs/skills-runtime-integration-plan.md](docs/skills-runtime-integration-plan.md)
+- [docs/skills-runtime-integration.md](docs/skills-runtime-integration.md)
+- [docs/skills-marketplace-hardening-plan.md](docs/skills-marketplace-hardening-plan.md)
 
 ## RAG 教学文档
 

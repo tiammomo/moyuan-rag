@@ -12,11 +12,12 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { Button } from '@/components/ui';
 import { Loading, EmptyState } from '@/components/ui/loading';
+import { ActiveSkillBadges } from '@/components/skills/active-skill-badges';
 import { ThinkingProcess, StreamingThinkingProcess } from '@/components/thinking-process';
 import { cn } from '@/lib/utils';
-import { chatApi, sessionApi, robotApi } from '@/api';
+import { chatApi, sessionApi, robotApi, skillApi } from '@/api';
 import { useChatStore } from '@/stores';
-import type { RobotBrief, ChatHistoryItem, RetrievedContext, ChatStreamChunk } from '@/types';
+import type { RobotBrief, ChatHistoryItem, RetrievedContext, ChatStreamChunk, SkillBinding } from '@/types';
 
 // 渲染 Markdown 内容（支持 LaTeX）
 function MarkdownRenderer({ content }: { content: string }) {
@@ -145,6 +146,7 @@ export default function ChatPage() {
   const [loadingRobots, setLoadingRobots] = useState(true);
   const [loadingSessions, setLoadingSessions] = useState(false);
   const [selectedContexts, setSelectedContexts] = useState<RetrievedContext[] | null>(null);
+  const [activeSkills, setActiveSkills] = useState<SkillBinding[]>([]);
   const streamingStartedRef = useRef<boolean>(false); // 标记流式响应是否已开始
   // 每个消息的折叠状态，使用 Map 存储 message_id -> isFolded
   const [reasoningFoldedMap, setReasoningFoldedMap] = useState<Map<string, boolean>>(new Map());
@@ -194,6 +196,28 @@ export default function ChatPage() {
     if (currentRobot) {
       loadSessions();
     }
+  }, [currentRobot]);
+
+  useEffect(() => {
+    const loadActiveSkills = async () => {
+      if (!currentRobot) {
+        setActiveSkills([]);
+        return;
+      }
+
+      try {
+        const bindings = await skillApi.getRobotBindings(currentRobot.id);
+        setActiveSkills(
+          bindings
+            .filter((binding) => binding.status === 'active')
+            .sort((left, right) => left.priority - right.priority),
+        );
+      } catch (error) {
+        setActiveSkills([]);
+      }
+    };
+
+    void loadActiveSkills();
   }, [currentRobot]);
 
   // 滚动到底部
@@ -614,6 +638,10 @@ export default function ChatPage() {
               </option>
             ))}
           </select>
+          <div className="mt-3 space-y-2">
+            <p className="text-xs font-medium text-gray-600 dark:text-gray-300">当前启用技能</p>
+            <ActiveSkillBadges skills={activeSkills} />
+          </div>
         </div>
 
         {/* 新对话按钮 */}

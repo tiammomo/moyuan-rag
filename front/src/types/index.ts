@@ -221,6 +221,7 @@ export interface Robot {
   status: number;
   user_id: number;
   knowledge_ids: number[];
+  skills: import('./skill').SkillBinding[];
   created_at: string;
   updated_at: string;
 }
@@ -397,6 +398,7 @@ export interface ChatResponse {
   question: string;
   answer: string;
   contexts: RetrievedContext[];
+  active_skills: import('./skill').SkillBinding[];
   token_usage: Record<string, number>;
   response_time: number;
 }
@@ -578,6 +580,7 @@ export interface ChatStreamChunk {
   is_finished?: boolean;
   contexts?: RetrievedContext[];
   token_usage?: Record<string, number>;
+  active_skills?: import('./skill').SkillBinding[];
   full_answer?: string;
   full_reasoning_content?: string;
   retrieval_time?: number;

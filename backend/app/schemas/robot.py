@@ -1,59 +1,56 @@
-"""
-Pydantic schemas for robot configuration and retrieval tests.
-"""
+"""Pydantic schemas for robot configuration and retrieval tests."""
 
 from datetime import datetime
 from typing import List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from app.schemas.skill import SkillRobotBindingDetail
+
 
 class RobotCreate(BaseModel):
-    name: str = Field(..., min_length=1, max_length=100, description="机器人名称")
-    avatar: Optional[str] = Field(None, description="机器人头像 URL")
-    chat_llm_id: int = Field(..., description="对话 LLM 模型 ID")
-    rerank_llm_id: Optional[int] = Field(None, description="重排序模型 ID")
-    knowledge_ids: List[int] = Field(..., min_length=1, description="关联的知识库 ID 列表")
+    name: str = Field(..., min_length=1, max_length=100, description="Robot name")
+    avatar: Optional[str] = Field(None, description="Robot avatar URL")
+    chat_llm_id: int = Field(..., description="Chat LLM model ID")
+    rerank_llm_id: Optional[int] = Field(None, description="Rerank model ID")
+    knowledge_ids: List[int] = Field(..., min_length=1, description="Associated knowledge IDs")
     system_prompt: str = Field(
         default="你是一个智能助手，请基于提供的知识库内容回答用户问题。",
         max_length=2000,
-        description="系统提示词",
+        description="System prompt",
     )
-    welcome_message: Optional[str] = Field(None, max_length=500, description="欢迎语")
-    top_k: int = Field(default=5, ge=1, le=20, description="检索 Top-K")
-    similarity_threshold: float = Field(
-        default=0.3, ge=0.0, le=1.0, description="召回结果相似度阈值"
-    )
-    enable_rerank: bool = Field(default=False, description="是否启用重排序")
-    temperature: float = Field(default=0.7, ge=0.0, le=2.0, description="生成温度")
-    max_tokens: int = Field(
-        default=2000, ge=100, le=8000, description="最大生成 token 数"
-    )
-    description: Optional[str] = Field(None, max_length=500, description="机器人描述")
+    welcome_message: Optional[str] = Field(None, max_length=500, description="Welcome message")
+    top_k: int = Field(default=5, ge=1, le=20, description="Retrieval top-k")
+    similarity_threshold: float = Field(default=0.3, ge=0.0, le=1.0, description="Similarity threshold")
+    enable_rerank: bool = Field(default=False, description="Whether rerank is enabled")
+    temperature: float = Field(default=0.7, ge=0.0, le=2.0, description="Generation temperature")
+    max_tokens: int = Field(default=2000, ge=100, le=8000, description="Max generation tokens")
+    description: Optional[str] = Field(None, max_length=500, description="Robot description")
 
 
 class RobotBase(BaseModel):
-    name: str = Field(..., description="机器人名称")
-    avatar: Optional[str] = Field(None, description="机器人头像 URL")
-    chat_llm_id: int = Field(..., description="对话 LLM 模型 ID")
-    rerank_llm_id: Optional[int] = Field(None, description="重排序模型 ID")
-    system_prompt: str = Field(..., description="系统提示词")
-    welcome_message: Optional[str] = Field(None, description="欢迎语")
-    top_k: int = Field(..., description="检索 Top-K")
-    similarity_threshold: float = Field(..., description="召回结果相似度阈值")
-    enable_rerank: bool = Field(..., description="是否启用重排序")
-    temperature: float = Field(..., description="生成温度")
-    max_tokens: int = Field(..., description="最大生成 token 数")
-    description: Optional[str] = Field(None, description="机器人描述")
-    status: int = Field(..., description="状态：0-禁用，1-启用")
+    name: str = Field(..., description="Robot name")
+    avatar: Optional[str] = Field(None, description="Robot avatar URL")
+    chat_llm_id: int = Field(..., description="Chat LLM model ID")
+    rerank_llm_id: Optional[int] = Field(None, description="Rerank model ID")
+    system_prompt: str = Field(..., description="System prompt")
+    welcome_message: Optional[str] = Field(None, description="Welcome message")
+    top_k: int = Field(..., description="Retrieval top-k")
+    similarity_threshold: float = Field(..., description="Similarity threshold")
+    enable_rerank: bool = Field(..., description="Whether rerank is enabled")
+    temperature: float = Field(..., description="Generation temperature")
+    max_tokens: int = Field(..., description="Max generation tokens")
+    description: Optional[str] = Field(None, description="Robot description")
+    status: int = Field(..., description="Status: 0 disabled, 1 enabled")
 
 
 class RobotDetail(RobotBase):
-    id: int = Field(..., description="机器人 ID")
-    user_id: int = Field(..., description="创建者用户 ID")
-    knowledge_ids: List[int] = Field(default_factory=list, description="关联的知识库 ID 列表")
-    created_at: datetime = Field(..., description="创建时间")
-    updated_at: datetime = Field(..., description="更新时间")
+    id: int = Field(..., description="Robot ID")
+    user_id: int = Field(..., description="Owner user ID")
+    knowledge_ids: List[int] = Field(default_factory=list, description="Associated knowledge IDs")
+    skills: List[SkillRobotBindingDetail] = Field(default_factory=list, description="Bound skills")
+    created_at: datetime = Field(..., description="Created at")
+    updated_at: datetime = Field(..., description="Updated at")
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -72,54 +69,48 @@ class RobotDetail(RobotBase):
 
 
 class RetrievalTestRequest(BaseModel):
-    query: str = Field(..., min_length=1, max_length=500, description="查询文本")
-    top_k: int = Field(default=5, ge=1, le=20, description="检索数量")
-    threshold: float = Field(default=0.0, ge=0.0, le=1.0, description="分数阈值")
+    query: str = Field(..., min_length=1, max_length=500, description="Query text")
+    top_k: int = Field(default=5, ge=1, le=20, description="Retrieval result count")
+    threshold: float = Field(default=0.0, ge=0.0, le=1.0, description="Score threshold")
 
 
 class RetrievalTestResultItem(BaseModel):
-    id: str = Field(..., description="切片 ID")
-    score: float = Field(..., description="得分")
-    content: str = Field(..., description="内容片段")
-    document_id: int = Field(..., description="所属文档 ID")
-    filename: str = Field(..., description="所属文件名")
+    id: str = Field(..., description="Chunk ID")
+    score: float = Field(..., description="Score")
+    content: str = Field(..., description="Chunk content")
+    document_id: int = Field(..., description="Document ID")
+    filename: str = Field(..., description="Filename")
 
 
 class RetrievalTestResponse(BaseModel):
-    results: List[RetrievalTestResultItem] = Field(..., description="检索结果列表")
+    results: List[RetrievalTestResultItem] = Field(..., description="Retrieval results")
 
 
 class RobotUpdate(BaseModel):
-    name: Optional[str] = Field(None, min_length=1, max_length=100, description="机器人名称")
-    avatar: Optional[str] = Field(None, description="机器人头像 URL")
-    chat_llm_id: Optional[int] = Field(None, description="对话 LLM 模型 ID")
-    rerank_llm_id: Optional[int] = Field(None, description="重排序模型 ID")
-    knowledge_ids: Optional[List[int]] = Field(
-        None, min_length=1, description="关联的知识库 ID 列表"
-    )
-    system_prompt: Optional[str] = Field(None, max_length=2000, description="系统提示词")
-    welcome_message: Optional[str] = Field(None, max_length=500, description="欢迎语")
-    top_k: Optional[int] = Field(None, ge=1, le=20, description="检索 Top-K")
-    similarity_threshold: Optional[float] = Field(
-        None, ge=0.0, le=1.0, description="召回结果相似度阈值"
-    )
-    enable_rerank: Optional[bool] = Field(None, description="是否启用重排序")
-    temperature: Optional[float] = Field(None, ge=0.0, le=2.0, description="生成温度")
-    max_tokens: Optional[int] = Field(
-        None, ge=100, le=8000, description="最大生成 token 数"
-    )
-    description: Optional[str] = Field(None, max_length=500, description="机器人描述")
-    status: Optional[int] = Field(None, description="状态：0-禁用，1-启用")
+    name: Optional[str] = Field(None, min_length=1, max_length=100, description="Robot name")
+    avatar: Optional[str] = Field(None, description="Robot avatar URL")
+    chat_llm_id: Optional[int] = Field(None, description="Chat LLM model ID")
+    rerank_llm_id: Optional[int] = Field(None, description="Rerank model ID")
+    knowledge_ids: Optional[List[int]] = Field(None, min_length=1, description="Associated knowledge IDs")
+    system_prompt: Optional[str] = Field(None, max_length=2000, description="System prompt")
+    welcome_message: Optional[str] = Field(None, max_length=500, description="Welcome message")
+    top_k: Optional[int] = Field(None, ge=1, le=20, description="Retrieval top-k")
+    similarity_threshold: Optional[float] = Field(None, ge=0.0, le=1.0, description="Similarity threshold")
+    enable_rerank: Optional[bool] = Field(None, description="Whether rerank is enabled")
+    temperature: Optional[float] = Field(None, ge=0.0, le=2.0, description="Generation temperature")
+    max_tokens: Optional[int] = Field(None, ge=100, le=8000, description="Max generation tokens")
+    description: Optional[str] = Field(None, max_length=500, description="Robot description")
+    status: Optional[int] = Field(None, description="Status: 0 disabled, 1 enabled")
 
 
 class RobotListResponse(BaseModel):
-    total: int = Field(..., description="总数")
-    items: List[RobotDetail] = Field(..., description="机器人列表")
+    total: int = Field(..., description="Total count")
+    items: List[RobotDetail] = Field(..., description="Robot list")
 
 
 class RobotBrief(BaseModel):
-    id: int = Field(..., description="机器人 ID")
-    name: str = Field(..., description="机器人名称")
-    description: Optional[str] = Field(None, description="机器人描述")
+    id: int = Field(..., description="Robot ID")
+    name: str = Field(..., description="Robot name")
+    description: Optional[str] = Field(None, description="Robot description")
 
     model_config = ConfigDict(from_attributes=True)

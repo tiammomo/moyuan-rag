@@ -25,6 +25,7 @@ from app.models.robot import Robot
 from app.models.robot_skill_binding import RobotSkillBinding
 from app.models.user import User
 from app.schemas.skill import (
+    RuntimeSkillPromptBundle,
     SkillBindingCreate,
     SkillBindingUpdate,
     SkillDetail,
@@ -89,6 +90,10 @@ class SkillService:
             encoding="utf-8",
         )
 
+    def _registry_map(self) -> dict[str, dict[str, Any]]:
+        registry = self._read_registry()
+        return {item["slug"]: item for item in registry["skills"]}
+
     def _to_absolute_path(self, relative_path: str | None) -> Path | None:
         if not relative_path:
             return None
@@ -103,6 +108,10 @@ class SkillService:
         if not path or not path.exists():
             return None
         return path.read_text(encoding="utf-8")
+
+    def _build_prompt_keys(self, manifest: dict[str, Any]) -> list[str]:
+        entrypoints = manifest.get("entrypoints") or {}
+        return [str(key) for key in entrypoints.keys()]
 
     def _build_prompt_entries(self, manifest: dict[str, Any], install_dir: Path | None) -> list[SkillPromptFile]:
         if install_dir is None:
@@ -123,6 +132,30 @@ class SkillService:
             )
 
         return prompts
+
+    def _build_binding_detail(
+        self,
+        binding: RobotSkillBinding,
+        robot_name: str | None,
+        record: dict[str, Any] | None,
+    ) -> SkillRobotBindingDetail:
+        manifest_path = self._to_absolute_path(record.get("manifest_path")) if record else None
+        manifest = self._read_manifest(manifest_path)
+        return SkillRobotBindingDetail(
+            robot_id=binding.robot_id,
+            robot_name=robot_name,
+            skill_slug=binding.skill_slug,
+            skill_name=record.get("name") if record else binding.skill_slug,
+            skill_version=binding.skill_version,
+            category=record.get("category") if record else None,
+            skill_description=record.get("description") if record else None,
+            priority=binding.priority,
+            status=binding.status,
+            prompt_keys=self._build_prompt_keys(manifest),
+            binding_config=binding.binding_config or {},
+            created_at=binding.created_at,
+            updated_at=binding.updated_at,
+        )
 
     async def _get_bound_counts(self, db: AsyncSession) -> dict[str, int]:
         if not hasattr(db, "execute") or db.execute is None:
@@ -315,19 +348,14 @@ class SkillService:
         stmt = stmt.order_by(RobotSkillBinding.priority.asc(), RobotSkillBinding.created_at.asc())
 
         result = await db.execute(stmt)
+        registry_map = self._registry_map()
         bindings: list[SkillRobotBindingDetail] = []
         for binding, robot_name in result.all():
             bindings.append(
-                SkillRobotBindingDetail(
-                    robot_id=binding.robot_id,
+                self._build_binding_detail(
+                    binding=binding,
                     robot_name=robot_name,
-                    skill_slug=binding.skill_slug,
-                    skill_version=binding.skill_version,
-                    priority=binding.priority,
-                    status=binding.status,
-                    binding_config=binding.binding_config or {},
-                    created_at=binding.created_at,
-                    updated_at=binding.updated_at,
+                    record=registry_map.get(binding.skill_slug),
                 )
             )
         return bindings
@@ -350,6 +378,87 @@ class SkillService:
         await self._get_robot_for_binding(db, robot_id, current_user)
         return await self.get_robot_bindings(db, robot_id=robot_id)
 
+    def _get_robot_modes(self, robot: Robot) -> set[str]:
+        _ = robot
+        return {"rag_chat"}
+
+    def _validate_skill_constraints(self, robot: Robot, detail: SkillDetail) -> None:
+        if detail.status != "active":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Skill {detail.name} is not active and cannot be bound.",
+            )
+        constraints = detail.manifest.get("constraints") or {}
+        allowed_modes = {str(item) for item in constraints.get("allowed_robot_modes") or []}
+        if allowed_modes and not (self._get_robot_modes(robot) & allowed_modes):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    f"Skill {detail.name} does not support this robot type. "
+                    f"Allowed modes: {', '.join(sorted(allowed_modes))}."
+                ),
+            )
+
+    async def get_runtime_skill_bundle(
+        self,
+        db: AsyncSession,
+        robot_id: int,
+    ) -> RuntimeSkillPromptBundle:
+        if not hasattr(db, "execute") or db.execute is None:
+            return RuntimeSkillPromptBundle()
+
+        stmt = (
+            select(RobotSkillBinding, Robot.name)
+            .join(Robot, Robot.id == RobotSkillBinding.robot_id)
+            .where(RobotSkillBinding.robot_id == robot_id, RobotSkillBinding.status == "active")
+            .order_by(RobotSkillBinding.priority.asc(), RobotSkillBinding.created_at.asc())
+        )
+        result = await db.execute(stmt)
+        registry_map = self._registry_map()
+
+        active_skills: list[SkillRobotBindingDetail] = []
+        system_prompts: list[str] = []
+        retrieval_prompts: list[str] = []
+        answer_prompts: list[str] = []
+
+        for binding, robot_name in result.all():
+            record = registry_map.get(binding.skill_slug)
+            if not record:
+                logger.warning("Skill binding points to missing registry slug: %s", binding.skill_slug)
+                continue
+
+            manifest_path = self._to_absolute_path(record.get("manifest_path"))
+            install_dir = self._to_absolute_path(record.get("install_path"))
+            manifest = self._read_manifest(manifest_path)
+            prompt_entries = self._build_prompt_entries(manifest, install_dir)
+
+            active_skills.append(
+                self._build_binding_detail(
+                    binding=binding,
+                    robot_name=robot_name,
+                    record=record,
+                )
+            )
+
+            for entry in prompt_entries:
+                content = entry.content.strip()
+                if not content:
+                    continue
+                formatted = f"[{record.get('name', binding.skill_slug)}::{entry.key}]\n{content}"
+                if entry.key == "system_prompt":
+                    system_prompts.append(formatted)
+                elif entry.key == "retrieval_prompt":
+                    retrieval_prompts.append(formatted)
+                elif entry.key == "answer_prompt":
+                    answer_prompts.append(formatted)
+
+        return RuntimeSkillPromptBundle(
+            active_skills=active_skills,
+            system_prompts=system_prompts,
+            retrieval_prompts=retrieval_prompts,
+            answer_prompts=answer_prompts,
+        )
+
     async def bind_skill_to_robot(
         self,
         db: AsyncSession,
@@ -358,8 +467,9 @@ class SkillService:
         payload: SkillBindingCreate,
         current_user: User,
     ) -> SkillRobotBindingDetail:
-        await self._get_robot_for_binding(db, robot_id, current_user)
+        robot = await self._get_robot_for_binding(db, robot_id, current_user)
         detail = await self.get_skill_detail(db, skill_slug)
+        self._validate_skill_constraints(robot, detail)
 
         result = await db.execute(
             select(RobotSkillBinding).where(
@@ -401,7 +511,10 @@ class SkillService:
         payload: SkillBindingUpdate,
         current_user: User,
     ) -> SkillRobotBindingDetail:
-        await self._get_robot_for_binding(db, robot_id, current_user)
+        robot = await self._get_robot_for_binding(db, robot_id, current_user)
+        detail = await self.get_skill_detail(db, skill_slug)
+        if payload.status != "disabled":
+            self._validate_skill_constraints(robot, detail)
         result = await db.execute(
             select(RobotSkillBinding).where(
                 RobotSkillBinding.robot_id == robot_id,

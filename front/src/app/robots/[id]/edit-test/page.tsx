@@ -26,6 +26,7 @@ import {
   Loading,
   PageLoading
 } from '@/components/ui';
+import { RobotSkillManager } from '@/components/skills/robot-skill-manager';
 import { useBotEditTestStore } from '@/stores';
 import { llmApi, knowledgeApi } from '@/api';
 import type { LLMBrief, Knowledge } from '@/types';
@@ -350,6 +351,8 @@ export default function BotEditWithTestPage() {
                 />
               </CardContent>
             </Card>
+
+            <RobotSkillManager robotId={robotId} />
           </div>
         </div>
 

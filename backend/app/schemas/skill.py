@@ -39,9 +39,13 @@ class SkillRobotBindingDetail(BaseModel):
     robot_id: int
     robot_name: Optional[str] = None
     skill_slug: str
+    skill_name: Optional[str] = None
     skill_version: str
+    category: Optional[str] = None
+    skill_description: Optional[str] = None
     priority: int
     status: str
+    prompt_keys: List[str] = Field(default_factory=list)
     binding_config: Dict[str, Any] = Field(default_factory=dict)
     created_at: datetime
     updated_at: datetime
@@ -74,3 +78,10 @@ class SkillBindingUpdate(BaseModel):
     priority: Optional[int] = Field(default=None, ge=1, le=9999)
     status: Optional[str] = None
     binding_config: Optional[Dict[str, Any]] = None
+
+
+class RuntimeSkillPromptBundle(BaseModel):
+    active_skills: List[SkillRobotBindingDetail] = Field(default_factory=list)
+    system_prompts: List[str] = Field(default_factory=list)
+    retrieval_prompts: List[str] = Field(default_factory=list)
+    answer_prompts: List[str] = Field(default_factory=list)
