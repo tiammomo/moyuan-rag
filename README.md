@@ -299,6 +299,10 @@ powershell -ExecutionPolicy Bypass -File .\backend\scripts\local-integration.ps1
 - [docs/minimax-anthropic-setup.md](docs/minimax-anthropic-setup.md)
 - [docs/demo-data-utf8-repair.md](docs/demo-data-utf8-repair.md)
 - [docs/skills-audit-report.md](docs/skills-audit-report.md)
+- [docs/skills-definition-and-boundary.md](docs/skills-definition-and-boundary.md)
+- [docs/skills-architecture.md](docs/skills-architecture.md)
+- [docs/skills-remote-install-security.md](docs/skills-remote-install-security.md)
+- [docs/skills-bootstrap-plan.md](docs/skills-bootstrap-plan.md)
 
 ## RAG 教学文档
 

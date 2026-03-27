@@ -1,6 +1,6 @@
 # Docs Index
 
-这个目录按“RAG 教学、模型接入、运维联调、审计规划、对外投递材料”来组织。
+这个目录按“RAG 教学、模型接入、运维联调、Skills 设计与规划、对外投递材料”来组织。
 
 ## RAG 教学
 
@@ -31,10 +31,16 @@
 - [infra-compose-migration.md](./infra-compose-migration.md)
 - [optimization-roadmap.md](./optimization-roadmap.md)
 
-## 审计与规划
+## Skills 设计与规划
 
 - [skills-audit-report.md](./skills-audit-report.md)
-- [skills-implementation-plan.md](./skills-implementation-plan.md)
+- [skills-definition-and-boundary.md](./skills-definition-and-boundary.md)
+- [skills-architecture.md](./skills-architecture.md)
+- [skills-remote-install-security.md](./skills-remote-install-security.md)
+- [skills-bootstrap-plan.md](./skills-bootstrap-plan.md)
+
+## 其他规划
+
 - [outreach-assets-plan.md](./outreach-assets-plan.md)
 - [teaching-examples-plan.md](./teaching-examples-plan.md)
 

@@ -76,4 +76,9 @@ The audit fixes should be validated with:
 
 ## Recommended Next Step
 
-If `skills` should become a real product capability, continue with [skills-implementation-plan.md](./skills-implementation-plan.md).
+The design phase is now complete. Continue with:
+
+- [skills-definition-and-boundary.md](./skills-definition-and-boundary.md)
+- [skills-architecture.md](./skills-architecture.md)
+- [skills-remote-install-security.md](./skills-remote-install-security.md)
+- [skills-bootstrap-plan.md](./skills-bootstrap-plan.md)
