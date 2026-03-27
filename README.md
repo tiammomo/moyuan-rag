@@ -33,7 +33,7 @@
 - **去 LangChain 化**: 核心逻辑自研实现，降低复杂度，提升系统可控性与性能。
 - **混合检索策略**: 结合 Milvus 向量检索与 Elasticsearch 全文检索（IK 分词），大幅提升召回精度。
 - **文档全生命周期管理**: 支持 PDF、Word、TXT、Markdown、HTML 等多种格式的自动化处理。
-- **微服务 Worker 架构**: 文档解析、切片、向量化均通过 Kafka 消息队列异步解耦处理。
+- **微服务 Worker 架构**: 文档解析、切片、向量化与召回评测均通过 Kafka Worker 异步解耦处理。
 - **MiniMax 大模型接入**: 已实测支持通过 Anthropic 兼容接口接入 MiniMax 作为聊天模型，完成真实 RAG 问答。
 - **SiliconFlow 深度集成**: 针对大模型 Embedding 接口提供自动分批、指数退火重试及详细错误诊断。
 
@@ -174,6 +174,7 @@ cd backend
 .venv\Scripts\python.exe -m app.workers.parser
 .venv\Scripts\python.exe -m app.workers.splitter
 .venv\Scripts\python.exe -m app.workers.vectorizer
+.venv\Scripts\python.exe -m app.workers.recall_worker
 ```
 
 前端单独开发：
@@ -297,6 +298,7 @@ powershell -ExecutionPolicy Bypass -File .\backend\scripts\local-integration.ps1
 - [docs/rag-workflow-hybrid-retrieval.md](docs/rag-workflow-hybrid-retrieval.md)
 - [docs/minimax-anthropic-setup.md](docs/minimax-anthropic-setup.md)
 - [docs/demo-data-utf8-repair.md](docs/demo-data-utf8-repair.md)
+- [docs/skills-audit-report.md](docs/skills-audit-report.md)
 
 ## RAG 教学文档
 

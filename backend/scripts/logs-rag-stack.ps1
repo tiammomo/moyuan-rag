@@ -1,5 +1,5 @@
 param(
-    [string[]]$Services = @("backend", "front", "parser", "splitter", "vectorizer"),
+    [string[]]$Services = @("backend", "front", "parser", "splitter", "vectorizer", "recall"),
     [int]$Tail = 200,
     [switch]$Follow,
     [switch]$All

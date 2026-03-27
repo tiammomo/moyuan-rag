@@ -27,18 +27,19 @@ $knownServices = @(
     "parser",
     "splitter",
     "vectorizer",
+    "recall",
     "front"
 )
 $dependentMap = @{
-    "mysql8" = @("backend", "parser", "splitter", "vectorizer", "front")
-    "es" = @("backend", "parser", "splitter", "vectorizer", "front", "kibana")
-    "etcd" = @("milvus-standalone", "attu", "backend", "parser", "splitter", "vectorizer", "front")
-    "minio" = @("milvus-standalone", "backend", "parser", "splitter", "vectorizer", "front")
-    "milvus-standalone" = @("attu", "backend", "parser", "splitter", "vectorizer", "front")
-    "redis" = @("backend", "parser", "splitter", "vectorizer", "front")
-    "zookeeper" = @("kafka", "kafka-ui", "backend", "parser", "splitter", "vectorizer", "front")
-    "kafka" = @("kafka-ui", "backend", "parser", "splitter", "vectorizer", "front")
-    "backend" = @("parser", "splitter", "vectorizer", "front")
+    "mysql8" = @("backend", "parser", "splitter", "vectorizer", "recall", "front")
+    "es" = @("backend", "parser", "splitter", "vectorizer", "recall", "front", "kibana")
+    "etcd" = @("milvus-standalone", "attu", "backend", "parser", "splitter", "vectorizer", "recall", "front")
+    "minio" = @("milvus-standalone", "backend", "parser", "splitter", "vectorizer", "recall", "front")
+    "milvus-standalone" = @("attu", "backend", "parser", "splitter", "vectorizer", "recall", "front")
+    "redis" = @("backend", "parser", "splitter", "vectorizer", "recall", "front")
+    "zookeeper" = @("kafka", "kafka-ui", "backend", "parser", "splitter", "vectorizer", "recall", "front")
+    "kafka" = @("kafka-ui", "backend", "parser", "splitter", "vectorizer", "recall", "front")
+    "backend" = @("parser", "splitter", "vectorizer", "recall", "front")
 }
 
 $requestedServices = @()

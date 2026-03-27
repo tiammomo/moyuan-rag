@@ -115,7 +115,7 @@ $baseServices = @(
     "kafka-ui",
     "backend"
 )
-$appServices = @("parser", "splitter", "vectorizer", "front")
+$appServices = @("parser", "splitter", "vectorizer", "recall", "front")
 
 Write-Step "starting rag compose infrastructure and backend"
 & docker @($composeArgs + $baseServices)
@@ -131,6 +131,7 @@ Wait-ComposeServiceReady -Service "front" -TimeoutSec $HealthTimeoutSec -Require
 Wait-ComposeServiceReady -Service "parser" -TimeoutSec $HealthTimeoutSec
 Wait-ComposeServiceReady -Service "splitter" -TimeoutSec $HealthTimeoutSec
 Wait-ComposeServiceReady -Service "vectorizer" -TimeoutSec $HealthTimeoutSec
+Wait-ComposeServiceReady -Service "recall" -TimeoutSec $HealthTimeoutSec
 
 Write-Step "waiting for backend and frontend health"
 Wait-HttpHealthy -Name "backend" -Url "$backendUrl/health" -TimeoutSec $HealthTimeoutSec

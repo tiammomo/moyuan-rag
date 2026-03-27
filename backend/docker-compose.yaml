@@ -333,6 +333,31 @@ services:
     networks:
       - rag-net
 
+  recall:
+    image: rag-backend:local
+    container_name: rag-recall
+    restart: unless-stopped
+    env_file:
+      - ./.env
+    environment:
+      DB_HOST: rag-mysql8
+      REDIS_HOST: rag-redis
+      ES_HOST: http://rag-es7:9200
+      MILVUS_HOST: rag-milvus
+      KAFKA_BOOTSTRAP_SERVERS: rag-kafka:29092
+    command: ["python", "-m", "app.workers.recall_worker"]
+    depends_on:
+      backend:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./models:/app/models
+    networks:
+      - rag-net
+
   front:
     build:
       context: ../front

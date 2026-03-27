@@ -4,8 +4,8 @@ import { MainLayout } from '@/components/layout';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'RAG知识问答系统',
-  description: '企业级RAG知识问答系统',
+  title: 'RAG 知识问答系统',
+  description: '企业级 RAG 知识问答系统',
 };
 
 export default function RootLayout({

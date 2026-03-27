@@ -42,6 +42,7 @@ This brings up:
   - `rag-parser`
   - `rag-splitter`
   - `rag-vectorizer`
+  - `rag-recall`
   - `rag-front`
 
 Compose-managed dependency data now targets stable named volumes such as `rag-mysql-data`, `rag-es-data`, and `rag-kafka-data`.
@@ -50,7 +51,7 @@ These volumes are now treated as external shared volumes so Compose does not try
 If you already have the dependency containers running as standalone containers on `rag-net`, you can start only the app layer first:
 
 ```powershell
-docker compose -f .\backend\docker-compose.yaml up -d --no-deps backend parser splitter vectorizer front
+docker compose -f .\backend\docker-compose.yaml up -d --no-deps backend parser splitter vectorizer recall front
 ```
 
 To inspect or migrate the current standalone dependency data into the Compose-managed volumes, use:
@@ -154,7 +155,7 @@ This keeps service discovery simple:
 
 ## Environment
 
-The backend, parser, splitter, and vectorizer services load `backend/.env` through `env_file`, then Compose overrides the host-style endpoints with container-internal service names.
+The backend, parser, splitter, vectorizer, and recall services load `backend/.env` through `env_file`, then Compose overrides the host-style endpoints with container-internal service names.
 
 Before the first `up`, make sure:
 
@@ -172,6 +173,7 @@ I kept the existing dependency container names for compatibility with the curren
   - `rag-parser`
   - `rag-splitter`
   - `rag-vectorizer`
+  - `rag-recall`
   - `rag-front`
 
 That gives one consistent naming scheme without breaking the current dependency references.
