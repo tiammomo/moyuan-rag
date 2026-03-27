@@ -137,4 +137,4 @@ skill/
 
 - [skills-architecture.md](./skills-architecture.md)
 - [skills-remote-install-security.md](./skills-remote-install-security.md)
-- [skills-bootstrap-plan.md](./skills-bootstrap-plan.md)
+- [skills-bootstrap-slice.md](./skills-bootstrap-slice.md)

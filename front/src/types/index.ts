@@ -608,3 +608,5 @@ export interface ChatHistoryItemWithReasoning extends ChatHistoryItem {
   reasoning_content?: string;
   is_reasoning_folded?: boolean;
 }
+
+export * from './skill';

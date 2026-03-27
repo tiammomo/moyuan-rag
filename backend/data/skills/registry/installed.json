@@ -1,0 +1,19 @@
+{
+  "skills": [
+    {
+      "slug": "rag-citation-guide",
+      "name": "RAG 引用回答助手",
+      "version": "0.1.0",
+      "description": "要求机器人优先给出结论，并在答案里明确引用知识库证据。",
+      "category": "answering",
+      "source_type": "local",
+      "status": "active",
+      "checksum": "demo-skill-registry-entry",
+      "install_path": "extracted/rag-citation-guide/0.1.0",
+      "manifest_path": "extracted/rag-citation-guide/0.1.0/skill.yaml",
+      "readme_path": "extracted/rag-citation-guide/0.1.0/SKILL.md",
+      "installed_at": "2026-03-27T12:00:00+08:00",
+      "installed_by": "system"
+    }
+  ]
+}

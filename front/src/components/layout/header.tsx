@@ -17,6 +17,7 @@ import {
   Sun,
   ChevronDown,
   Search,
+  Wrench,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuthStore, useThemeStore } from '@/stores';
@@ -32,6 +33,7 @@ const navItems: NavItem[] = [
   { name: '对话', href: '/chat', icon: <MessageSquare className="h-5 w-5" /> },
   { name: '知识库', href: '/knowledge', icon: <Database className="h-5 w-5" /> },
   { name: '机器人', href: '/robots', icon: <Bot className="h-5 w-5" /> },
+  { name: '技能', href: '/skills', icon: <Wrench className="h-5 w-5" /> },
   { name: '召回测试', href: '/recall/test', icon: <Search className="h-5 w-5" /> },
   { name: '用户管理', href: '/admin/users', icon: <Users className="h-5 w-5" />, adminOnly: true },
   { name: 'LLM 配置', href: '/admin/llms', icon: <Settings className="h-5 w-5" />, adminOnly: true },

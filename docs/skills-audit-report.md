@@ -76,9 +76,7 @@ The audit fixes should be validated with:
 
 ## Recommended Next Step
 
-The design phase is now complete. Continue with:
+The bootstrap slice is now in place. Continue with:
 
-- [skills-definition-and-boundary.md](./skills-definition-and-boundary.md)
-- [skills-architecture.md](./skills-architecture.md)
-- [skills-remote-install-security.md](./skills-remote-install-security.md)
-- [skills-bootstrap-plan.md](./skills-bootstrap-plan.md)
+- [skills-bootstrap-slice.md](./skills-bootstrap-slice.md)
+- [skills-runtime-integration-plan.md](./skills-runtime-integration-plan.md)

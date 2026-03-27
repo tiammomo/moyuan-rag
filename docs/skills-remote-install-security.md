@@ -173,4 +173,4 @@ flowchart LR
 
 - [skills-definition-and-boundary.md](./skills-definition-and-boundary.md)
 - [skills-architecture.md](./skills-architecture.md)
-- [skills-bootstrap-plan.md](./skills-bootstrap-plan.md)
+- [skills-bootstrap-slice.md](./skills-bootstrap-slice.md)

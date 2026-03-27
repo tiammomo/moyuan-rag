@@ -10,5 +10,6 @@ from app.models.knowledge import Knowledge
 from app.models.document import Document
 from app.models.robot import Robot
 from app.models.robot_knowledge import RobotKnowledge
+from app.models.robot_skill_binding import RobotSkillBinding
 from app.models.session import Session
 from app.models.chat_history import ChatHistory

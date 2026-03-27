@@ -94,6 +94,8 @@ class Settings(BaseSettings):
     # ==================== 文件存储配置 ====================
     FILE_STORAGE_PATH: str = "./data/files"
     MAX_FILE_SIZE: int = 52428800  # 50MB
+    SKILL_INSTALL_ROOT: str = "./data/skills"
+    ENABLE_REMOTE_SKILL_INSTALL: bool = False
     
     # ==================== Embedding模型配置 ====================
     EMBEDDING_MODEL_PATH: str = "./models/Qwen/Qwen3-Embedding-0___6B"

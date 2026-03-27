@@ -1,0 +1,14 @@
+schema_version: 1
+slug: rag-citation-guide
+name: RAG 引用回答助手
+version: 0.1.0
+category: answering
+description: 要求机器人优先给出结论，并在答案中清晰标注证据来源。
+entrypoints:
+  system_prompt: prompts/system.md
+  retrieval_prompt: prompts/retrieval.md
+  answer_prompt: prompts/answer.md
+constraints:
+  min_app_version: 1.0.0
+  allowed_robot_modes:
+    - rag_chat
