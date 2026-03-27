@@ -11,16 +11,16 @@ Default host ports:
 
 From the repository root:
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\backend\scripts\start-rag-stack.ps1 -Build
+```bash
+python backend/scripts/rag_stack.py start --build
 ```
 
 If you prefer the manual sequence, it is still:
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\backend\scripts\ensure-rag-network.ps1
-powershell -ExecutionPolicy Bypass -File .\backend\scripts\ensure-rag-volumes.ps1
-docker compose -f .\backend\docker-compose.yaml up --build -d
+```bash
+python backend/scripts/rag_stack.py ensure-network
+python backend/scripts/rag_stack.py ensure-volumes
+docker compose -f backend/docker-compose.yaml up --build -d
 ```
 
 This brings up:
@@ -50,32 +50,32 @@ These volumes are now treated as external shared volumes so Compose does not try
 
 If you already have the dependency containers running as standalone containers on `rag-net`, you can start only the app layer first:
 
-```powershell
-docker compose -f .\backend\docker-compose.yaml up -d --no-deps backend parser splitter vectorizer recall front
+```bash
+docker compose -f backend/docker-compose.yaml up -d --no-deps backend parser splitter vectorizer recall front
 ```
 
 To inspect or migrate the current standalone dependency data into the Compose-managed volumes, use:
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\backend\scripts\migrate-infra-to-compose.ps1
+```bash
+python backend/scripts/migrate_infra_to_compose.py
 ```
 
 To bootstrap the required named volumes on a fresh machine without warnings, use:
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\backend\scripts\ensure-rag-volumes.ps1
+```bash
+python backend/scripts/rag_stack.py ensure-volumes
 ```
 
 ## Check Stack Status
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\backend\scripts\status-rag-stack.ps1
+```bash
+python backend/scripts/rag_stack.py status
 ```
 
 For machine-readable output:
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\backend\scripts\status-rag-stack.ps1 -Json
+```bash
+python backend/scripts/rag_stack.py status --json
 ```
 
 The status helper compares Compose container state with the host HTTP endpoints.
@@ -83,50 +83,50 @@ If an endpoint is reachable while the Compose service is stopped, it reports a w
 
 ## View Logs
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\backend\scripts\logs-rag-stack.ps1 -Tail 100
+```bash
+python backend/scripts/rag_stack.py logs --tail 100
 ```
 
 To follow logs continuously:
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\backend\scripts\logs-rag-stack.ps1 -Follow
+```bash
+python backend/scripts/rag_stack.py logs --follow
 ```
 
 ## Restart Specific Services
 
 Restart one or more compose services:
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\backend\scripts\restart-rag-stack.ps1 -Services backend
+```bash
+python backend/scripts/rag_stack.py restart backend
 ```
 
 Restart a service and its app-layer dependents:
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\backend\scripts\restart-rag-stack.ps1 -Services backend -IncludeDependents
+```bash
+python backend/scripts/rag_stack.py restart backend --include-dependents
 ```
 
 See [compose-troubleshooting.md](./compose-troubleshooting.md) for the full troubleshooting flow.
 
 ## Stop the Full Stack
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\backend\scripts\stop-rag-stack.ps1
+```bash
+python backend/scripts/rag_stack.py stop
 ```
 
 This stops the services but keeps the containers for a fast restart.
 
 To remove the compose-managed containers too:
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\backend\scripts\stop-rag-stack.ps1 -RemoveContainers
+```bash
+python backend/scripts/rag_stack.py stop --remove-containers
 ```
 
 To also remove orphaned compose containers:
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\backend\scripts\stop-rag-stack.ps1 -RemoveContainers -RemoveOrphans
+```bash
+python backend/scripts/rag_stack.py stop --remove-containers --remove-orphans
 ```
 
 Because the dependency volumes are declared as external, even the remove-container path preserves the shared `rag-*` named volumes.
@@ -139,8 +139,8 @@ All services join the same Docker bridge network:
 
 `rag-net` is treated as an external shared network, so create or reconcile it first if needed:
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\backend\scripts\ensure-rag-network.ps1
+```bash
+python backend/scripts/rag_stack.py ensure-network
 ```
 
 This keeps service discovery simple:

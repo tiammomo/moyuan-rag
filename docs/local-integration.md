@@ -1,6 +1,6 @@
 # Local Integration Runbook
 
-This repository now includes a repeatable local integration flow for the backend document pipeline.
+This repository includes a repeatable local integration flow for the backend document pipeline.
 
 Default host ports used by the wrapper and compose stack:
 
@@ -9,10 +9,10 @@ Default host ports used by the wrapper and compose stack:
 
 ## Scripts
 
-- `backend/scripts/local-integration.ps1`
-  - PowerShell wrapper that can start local services, run Alembic migrations, start the API and workers, and launch the integration scenario.
+- `backend/scripts/local_integration.py`
+  - Cross-platform wrapper that can start compose services, prepare the local Python environment, and run the integration scenario.
 - `backend/scripts/run_local_integration.py`
-  - Python scenario runner that:
+  - Scenario runner that:
     - registers an admin user
     - logs in
     - creates a local embedding LLM record
@@ -31,56 +31,57 @@ Default host ports used by the wrapper and compose stack:
 
 From the repository root:
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\backend\scripts\local-integration.ps1 -StartInfra -SyncDeps
+```bash
+python backend/scripts/local_integration.py --start-infra --sync-deps
 ```
 
-If your containers are already up and your virtual environment is ready, a faster rerun is:
+If your containers are already up and `backend/.venv` is ready, a faster rerun is:
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\backend\scripts\local-integration.ps1
+```bash
+python backend/scripts/local_integration.py
 ```
 
 ## Docker Dependency Network
 
 All dependency containers should live on the same bridge network: `rag-net`.
 
-- `backend/docker-compose.yaml` now declares an explicit Docker network name:
-  - `rag-net`
-- Existing standalone containers can be attached to that network with:
+- `backend/docker-compose.yaml` declares an explicit Docker network name: `rag-net`
+- Existing standalone containers can be attached with:
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\backend\scripts\ensure-rag-network.ps1
+```bash
+python backend/scripts/rag_stack.py ensure-network
 ```
 
-- `backend/scripts/local-integration.ps1 -StartInfra` now runs this network check automatically before `docker compose up -d`.
-- `backend/scripts/local-integration.ps1 -StartInfra` now runs both the network check and the volume bootstrap automatically before `docker compose up -d`.
+- `python backend/scripts/local_integration.py --start-infra` now runs the network check automatically before compose startup.
+- `python backend/scripts/local_integration.py --start-infra` also runs the named-volume bootstrap before compose startup.
 
 ## Docker Named Volumes
 
-The compose stack now treats the shared `rag-*` data volumes as external named volumes.
+The compose stack treats the shared `rag-*` data volumes as external named volumes.
 
 - Bootstrap or reconcile them with:
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\backend\scripts\ensure-rag-volumes.ps1
+```bash
+python backend/scripts/rag_stack.py ensure-volumes
 ```
 
-- To inspect the current members:
+- To inspect current network members:
 
-```powershell
+```bash
 docker network inspect rag-net
 ```
 
 ## Useful Options
 
-- `-StartInfra`
-  - Runs `docker compose up -d` with `backend/docker-compose.yaml` and waits for local ports.
-- `-SyncDeps`
+- `--start-infra`
+  - Runs the compose stack first and waits for service health.
+- `--compose-build`
+  - Rebuilds images when starting compose services.
+- `--sync-deps`
   - Reinstalls `backend/requirements.txt` into `backend/.venv`.
-- `-StopStartedProcesses`
-  - Stops only the backend and worker processes that the wrapper started itself.
-- `-UploadFile <path>`
+- `--stop-started-processes`
+  - Stops only the backend and worker processes that this wrapper started itself.
+- `--upload-file <path>`
   - Overrides the default upload file. The default is `docs/optimization-roadmap.md`.
 
 ## Logs
@@ -100,4 +101,4 @@ Application logs still go to `backend/logs/`.
 
 ## Reliability Notes
 
-- Kafka pipeline reliability hardening, dead-letter topics, and operator recovery steps are documented in `docs/kafka-reliability.md`.
+- Kafka pipeline reliability hardening, dead-letter topics, and operator recovery steps are documented in [kafka-reliability.md](./kafka-reliability.md).

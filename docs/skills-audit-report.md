@@ -60,7 +60,7 @@ These issues were found and resolved during the audit:
 
 - added `front/src/app/profile/page.tsx`
 - wired `recall` into `backend/docker-compose.yaml`
-- updated `start-rag-stack.ps1`, `restart-rag-stack.ps1`, and `logs-rag-stack.ps1` to include `recall`
+- updated `python backend/scripts/rag_stack.py start`, `python backend/scripts/rag_stack.py restart`, and `python backend/scripts/rag_stack.py logs` to include `recall`
 - updated `README.md`, `docs/README.md`, and `docs/full-stack-compose.md`
 - normalized visible text in the shared frontend layout used by authenticated pages
 
@@ -68,7 +68,7 @@ These issues were found and resolved during the audit:
 
 The audit fixes should be validated with:
 
-- `docker compose -f .\backend\docker-compose.yaml config`
+- `docker compose -f backend/docker-compose.yaml config`
 - `npm run type-check`
 - Compose start or targeted `recall` service bring-up
 - frontend route check for `/profile`

@@ -22,8 +22,8 @@ Status:
 
 Use this first. It only inspects the current environment and prints the migration map.
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\backend\scripts\migrate-infra-to-compose.ps1
+```bash
+python backend/scripts/migrate_infra_to_compose.py
 ```
 
 The script identifies whether each dependency currently stores data in:
@@ -36,8 +36,8 @@ The script identifies whether each dependency currently stores data in:
 
 Only run this during a maintenance window.
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\backend\scripts\migrate-infra-to-compose.ps1 -Cutover
+```bash
+python backend/scripts/migrate_infra_to_compose.py --cutover
 ```
 
 What it does:
@@ -73,6 +73,6 @@ If a target volume already has data, the script stops unless you explicitly reru
 3. Choose a maintenance window.
 4. Run `-Cutover`.
 5. Validate with:
-   - `docker compose -f .\backend\docker-compose.yaml ps`
+   - `docker compose -f backend/docker-compose.yaml ps`
 - `http://localhost:38084/health`
-   - `powershell -ExecutionPolicy Bypass -File .\backend\scripts\local-integration.ps1`
+   - `python backend/scripts/local_integration.py`

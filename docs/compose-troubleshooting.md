@@ -6,14 +6,14 @@ This guide covers the standard local troubleshooting flow for the compose-manage
 
 Use the status helper first:
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\backend\scripts\status-rag-stack.ps1
+```bash
+python backend/scripts/rag_stack.py status
 ```
 
 Use JSON output when you want to inspect the service state programmatically:
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\backend\scripts\status-rag-stack.ps1 -Json
+```bash
+python backend/scripts/rag_stack.py status --json
 ```
 
 What to look for:
@@ -29,42 +29,42 @@ That warning usually means a host-side process is already bound to the same port
 
 The log helper defaults to the main app services:
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\backend\scripts\logs-rag-stack.ps1 -Tail 100
+```bash
+python backend/scripts/rag_stack.py logs --tail 100
 ```
 
 Follow logs continuously:
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\backend\scripts\logs-rag-stack.ps1 -Follow
+```bash
+python backend/scripts/rag_stack.py logs --follow
 ```
 
 Limit to specific services:
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\backend\scripts\logs-rag-stack.ps1 -Services backend,front -Tail 200
+```bash
+python backend/scripts/rag_stack.py logs --services backend front --tail 200
 ```
 
 ## 3. Restart Only What You Need
 
 Restart one or more services:
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\backend\scripts\restart-rag-stack.ps1 -Services backend
+```bash
+python backend/scripts/rag_stack.py restart backend
 ```
 
 Restart a service and the app-layer dependents that rely on it:
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\backend\scripts\restart-rag-stack.ps1 -Services backend -IncludeDependents
+```bash
+python backend/scripts/rag_stack.py restart backend --include-dependents
 ```
 
 Examples:
 
 - restart the frontend only:
-  - `powershell -ExecutionPolicy Bypass -File .\backend\scripts\restart-rag-stack.ps1 -Services front`
+  - `python backend/scripts/rag_stack.py restart front`
 - restart Kafka and the services that depend on it:
-  - `powershell -ExecutionPolicy Bypass -File .\backend\scripts\restart-rag-stack.ps1 -Services kafka -IncludeDependents`
+  - `python backend/scripts/rag_stack.py restart kafka --include-dependents`
 
 The restart helper waits for compose readiness and also verifies HTTP health for `backend` and `front`.
 
@@ -72,28 +72,28 @@ The restart helper waits for compose readiness and also verifies HTTP health for
 
 If multiple services are down or the environment is inconsistent, stop then restart the stack:
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\backend\scripts\stop-rag-stack.ps1
-powershell -ExecutionPolicy Bypass -File .\backend\scripts\start-rag-stack.ps1
+```bash
+python backend/scripts/rag_stack.py stop
+python backend/scripts/rag_stack.py start
 ```
 
 If you need to recreate containers:
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\backend\scripts\stop-rag-stack.ps1 -RemoveContainers
-powershell -ExecutionPolicy Bypass -File .\backend\scripts\start-rag-stack.ps1 -Build
+```bash
+python backend/scripts/rag_stack.py stop --remove-containers
+python backend/scripts/rag_stack.py start --build
 ```
 
 ## 5. Validate Recovery
 
 After recovery:
 
-1. Re-run `status-rag-stack.ps1`.
+1. Re-run `python backend/scripts/rag_stack.py status`.
 2. Confirm `backend`, `front`, and `kafka` show healthy.
 3. If the issue touched the document pipeline, run:
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\backend\scripts\local-integration.ps1
+```bash
+python backend/scripts/local_integration.py
 ```
 
 ## 6. Notes

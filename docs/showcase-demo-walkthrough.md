@@ -82,7 +82,7 @@ The answer is generated from retrieved knowledge, not only from the base model. 
 
 ### 6. Close With Operations Capability
 
-- Mention `start-rag-stack.ps1`, `status-rag-stack.ps1`, `logs-rag-stack.ps1`, and `restart-rag-stack.ps1`
+- Mention `python backend/scripts/rag_stack.py start`, `python backend/scripts/rag_stack.py status`, `python backend/scripts/rag_stack.py logs`, and `python backend/scripts/rag_stack.py restart`
 - Optional: show one status or health command in the terminal
 
 Suggested wording:
@@ -98,7 +98,7 @@ The goal of the project is not just to build a demo. It is to provide a RAG syst
 
 ## Optional Terminal Commands
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\backend\scripts\status-rag-stack.ps1
-powershell -ExecutionPolicy Bypass -File .\backend\scripts\logs-rag-stack.ps1 -Services backend,parser,splitter,vectorizer -Tail 20
+```bash
+python backend/scripts/rag_stack.py status
+python backend/scripts/rag_stack.py logs --services backend parser splitter vectorizer --tail 20
 ```

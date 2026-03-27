@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import re
 import sys
 import urllib.error
 import urllib.parse
@@ -16,7 +15,7 @@ BASE_URL_DEFAULT = "http://localhost:38084/api/v1"
 DEFAULT_USERNAME = "readme_demo_0327"
 DEFAULT_PASSWORD = "Demo123456!"
 DEFAULT_ROBOT_NAME = "README 截图机器人"
-DEFAULT_ROBOT_DESCRIPTION = "用于 README 截图与 MiniMax RAG 演示"
+DEFAULT_ROBOT_DESCRIPTION = "用于 README 截图中的 MiniMax RAG 演示"
 DEFAULT_ROBOT_PROMPT = (
     "你是 README 截图机器人，请基于知识库内容准确、简洁地回答用户问题，"
     "并优先给出与 RAG 工作流、混合检索和 MiniMax 接入相关的说明。"
@@ -77,10 +76,6 @@ def request_json(
         raise RuntimeError(f"{method.upper()} {url} failed: {exc.code} {body}") from exc
     except urllib.error.URLError as exc:
         raise RuntimeError(f"{method.upper()} {url} failed: {exc}") from exc
-
-
-def contains_cjk(text: str) -> bool:
-    return bool(re.search(r"[\u4e00-\u9fff]", text))
 
 
 def is_placeholder_text(text: str | None) -> bool:

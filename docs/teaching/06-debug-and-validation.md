@@ -1,11 +1,9 @@
-# 06 调试与验证
+# 06 璋冭瘯涓庨獙璇?
+## 涓轰粈涔?RAG 椤圭洰涓€瀹氳鏈夎仈璋冮獙璇?
+鍥犱负瀹冧笉鏄崟浣撳簲鐢紝鑰屾槸涓€鏁村澶氱粍浠剁郴缁燂細
 
-## 为什么 RAG 项目一定要有联调验证
-
-因为它不是单体应用，而是一整套多组件系统：
-
-- 前端
-- 后端
+- 鍓嶇
+- 鍚庣
 - worker
 - MySQL
 - Redis
@@ -13,101 +11,80 @@
 - Elasticsearch
 - Milvus
 
-如果只看单个接口是否返回 `200`，并不能证明整条链路可用。
-
-## 最先看什么
-
-先看服务是否健康：
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\backend\scripts\status-rag-stack.ps1
+濡傛灉鍙湅鍗曚釜鎺ュ彛鏄惁杩斿洖 `200`锛屽苟涓嶈兘璇佹槑鏁存潯閾捐矾鍙敤銆?
+## 鏈€鍏堢湅浠€涔?
+鍏堢湅鏈嶅姟鏄惁鍋ュ悍锛?
+```bash
+python backend/scripts/rag_stack.py status
 ```
 
-还可以直接看：
+杩樺彲浠ョ洿鎺ョ湅锛?
+- 鍓嶇锛歚http://localhost:33004`
+- 鍚庣鍋ュ悍妫€鏌ワ細`http://localhost:38084/health`
+- Swagger锛歚http://localhost:38084/docs`
 
-- 前端：`http://localhost:33004`
-- 后端健康检查：`http://localhost:38084/health`
-- Swagger：`http://localhost:38084/docs`
+## 濡備綍楠岃瘉瀹屾暣鍏ュ簱閾捐矾
 
-## 如何验证完整入库链路
+鎺ㄨ崘鐩存帴璺戞湰鍦伴泦鎴愯剼鏈細
 
-推荐直接跑本地集成脚本：
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\backend\scripts\local-integration.ps1 -StartInfra
+```bash
+python backend/scripts/local_integration.py --start-infra
 ```
 
-它会验证：
+瀹冧細楠岃瘉锛?
+- 鍩虹鏈嶅姟鏄惁鍙敤
+- 杩佺Щ鏄惁鎵ц
+- 涓婁紶鍒板悜閲忓寲鏄惁璺戦€?- MySQL銆丒lasticsearch銆丮ilvus 鏄惁涓€鑷磋惤搴?
+## 涓婁紶鍗′綇鏃跺厛鐪嬪摢閲?
+### 鍋滃湪 `uploading`
 
-- 基础服务是否可用
-- 迁移是否执行
-- 上传到向量化是否跑通
-- MySQL、Elasticsearch、Milvus 是否一致落库
+浼樺厛鎺掓煡锛?
+- backend 鏄惁鎴愬姛鍙戝嚭 Kafka 娑堟伅
+- Kafka / worker 鏄惁姝ｅ父杩愯
 
-## 上传卡住时先看哪里
+### 鍋滃湪 `parsing`
 
-### 停在 `uploading`
+浼樺厛鎺掓煡锛?
+- parser worker 鏃ュ織
+- 鏂囦欢瑙ｆ瀽鏄惁澶辫触
+- 鍘熸枃浠惰矾寰勬槸鍚﹀彲璇?
+### 鍋滃湪 `splitting`
 
-优先排查：
+浼樺厛鎺掓煡锛?
+- splitter worker 鏃ュ織
+- parser artifact 鏄惁瀛樺湪
 
-- backend 是否成功发出 Kafka 消息
-- Kafka / worker 是否正常运行
+### 鍋滃湪 `embedding`
 
-### 停在 `parsing`
+浼樺厛鎺掓煡锛?
+- vectorizer worker 鏃ュ織
+- embedding 妯″瀷鏄惁鍙敤
+- Elasticsearch / Milvus 鏄惁姝ｅ父鍐欏叆
 
-优先排查：
-
-- parser worker 日志
-- 文件解析是否失败
-- 原文件路径是否可读
-
-### 停在 `splitting`
-
-优先排查：
-
-- splitter worker 日志
-- parser artifact 是否存在
-
-### 停在 `embedding`
-
-优先排查：
-
-- vectorizer worker 日志
-- embedding 模型是否可用
-- Elasticsearch / Milvus 是否正常写入
-
-## 看日志怎么做
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\backend\scripts\logs-rag-stack.ps1 -Services backend,parser,splitter,vectorizer -Tail 50
+## 鐪嬫棩蹇楁€庝箞鍋?
+```bash
+python backend/scripts/rag_stack.py logs --services backend parser splitter vectorizer --tail 50
 ```
 
-## 重启单个服务怎么做
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\backend\scripts\restart-rag-stack.ps1 -Services backend
+## 閲嶅惎鍗曚釜鏈嶅姟鎬庝箞鍋?
+```bash
+python backend/scripts/rag_stack.py restart backend
 ```
 
-## Kafka 相关问题怎么处理
+## Kafka 鐩稿叧闂鎬庝箞澶勭悊
 
-这个项目已经做了：
-
-- 手动提交 offset
+杩欎釜椤圭洰宸茬粡鍋氫簡锛?
+- 鎵嬪姩鎻愪氦 offset
 - DLQ
-- replay 工具
+- replay 宸ュ叿
 
-所以当消息失败时，不是简单丢掉，而是可以继续追踪和回放。
+鎵€浠ュ綋娑堟伅澶辫触鏃讹紝涓嶆槸绠€鍗曚涪鎺夛紝鑰屾槸鍙互缁х画杩借釜鍜屽洖鏀俱€?
+## 濡備綍鐞嗚В鈥滄祴璇曢€氳繃鈥?
+瀵硅繖涓」鐩潵璇达紝鐪熸鐨勨€滈€氳繃鈥濊嚦灏戞剰鍛崇潃锛?
+- 鍓嶅悗绔彲璁块棶
+- 鏂囨。鑳藉畬鎴愬叆搴?- ES 鏈?chunk
+- Milvus 鏈夊悜閲?- 鏂囨。鐘舵€佽兘杩涘叆 `completed`
 
-## 如何理解“测试通过”
+## 鏈€鍚庤浣忎竴鍙ヨ瘽
 
-对这个项目来说，真正的“通过”至少意味着：
-
-- 前后端可访问
-- 文档能完成入库
-- ES 有 chunk
-- Milvus 有向量
-- 文档状态能进入 `completed`
-
-## 最后记住一句话
-
-RAG 项目的验证不是看某个函数跑没跑，而是看“从上传到答案”的整条链路有没有闭环。
+RAG 椤圭洰鐨勯獙璇佷笉鏄湅鏌愪釜鍑芥暟璺戞病璺戯紝鑰屾槸鐪嬧€滀粠涓婁紶鍒扮瓟妗堚€濈殑鏁存潯閾捐矾鏈夋病鏈夐棴鐜€?

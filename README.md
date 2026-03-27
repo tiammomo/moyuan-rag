@@ -1,4 +1,4 @@
-﻿# 企业级 RAG 知识问答系统
+# 企业级 RAG 知识问答系统
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python: 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
@@ -73,15 +73,16 @@ rag/
 │   ├── app/                # 核心逻辑
 │   ├── config/             # 模型与业务配置
 │   ├── data/               # 本地存储 (原始文件、清洗结果)
+│   ├── docker/             # Elasticsearch 镜像与 IK 插件资源
 │   ├── models/             # 本地 Embedding 模型权重
-│   ├── scripts/            # 数据库维护与 ES 插件脚本
+│   ├── scripts/            # 跨平台运维与维护脚本
 │   ├── sql/                # 数据库初始化脚本
 │   ├── tests/              # 单元测试与压力测试
+│   ├── docker-compose.yaml # 本地完整编排入口
 │   └── main.py             # 入口文件
 ├── front/                  # 前端应用
 │   ├── src/                # 源代码
 │   └── cypress/            # E2E 测试
-├── docker-compose.yaml      # 基础架构容器配置
 └── README.md                # 项目总文档
 ```
 
@@ -99,8 +100,8 @@ rag/
 
 先准备后端环境文件：
 
-```powershell
-Copy-Item .\backend\.env.example .\backend\.env
+```bash
+cp backend/.env.example backend/.env
 ```
 
 然后检查并修改这些关键项：
@@ -111,8 +112,8 @@ Copy-Item .\backend\.env.example .\backend\.env
 
 推荐直接使用 compose 运维脚本启动整套环境：
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\backend\scripts\start-rag-stack.ps1 -Build
+```bash
+python backend/scripts/rag_stack.py start --build
 ```
 
 启动成功后可以访问：
@@ -128,26 +129,26 @@ powershell -ExecutionPolicy Bypass -File .\backend\scripts\start-rag-stack.ps1 -
 
 查看状态：
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\backend\scripts\status-rag-stack.ps1
+```bash
+python backend/scripts/rag_stack.py status
 ```
 
 查看日志：
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\backend\scripts\logs-rag-stack.ps1 -Tail 100
+```bash
+python backend/scripts/rag_stack.py logs --tail 100
 ```
 
 定向重启服务：
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\backend\scripts\restart-rag-stack.ps1 -Services backend -IncludeDependents
+```bash
+python backend/scripts/rag_stack.py restart backend --include-dependents
 ```
 
 停止整套环境：
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\backend\scripts\stop-rag-stack.ps1
+```bash
+python backend/scripts/rag_stack.py stop
 ```
 
 更详细的本地编排与排障说明见：
@@ -162,27 +163,28 @@ powershell -ExecutionPolicy Bypass -File .\backend\scripts\stop-rag-stack.ps1
 
 如果你需要不通过 compose 直接本地跑后端：
 
-```powershell
+```bash
 cd backend
 python -m venv .venv
-.venv\Scripts\python.exe -m pip install -r requirements.txt
-.venv\Scripts\python.exe -m alembic -c alembic.ini upgrade head
-.venv\Scripts\python.exe -m uvicorn app.main:app --host 0.0.0.0 --port 38084
+# activate backend/.venv in your current shell, then:
+python -m pip install -r requirements.txt
+python -m alembic -c alembic.ini upgrade head
+python -m uvicorn app.main:app --host 0.0.0.0 --port 38084
 ```
 
 Worker 可分别启动：
 
-```powershell
+```bash
 cd backend
-.venv\Scripts\python.exe -m app.workers.parser
-.venv\Scripts\python.exe -m app.workers.splitter
-.venv\Scripts\python.exe -m app.workers.vectorizer
-.venv\Scripts\python.exe -m app.workers.recall_worker
+python -m app.workers.parser
+python -m app.workers.splitter
+python -m app.workers.vectorizer
+python -m app.workers.recall_worker
 ```
 
 前端单独开发：
 
-```powershell
+```bash
 cd front
 npm install
 npm run dev
@@ -212,9 +214,9 @@ npm run dev
 
 如果你需要通过脚本修复或重建中文 demo 数据，推荐直接使用仓库里的 UTF-8 安全修复入口：
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\backend\scripts\repair-demo-unicode.ps1 -DryRun
-powershell -ExecutionPolicy Bypass -File .\backend\scripts\repair-demo-unicode.ps1
+```bash
+python backend/scripts/repair_demo_unicode.py --dry-run
+python backend/scripts/repair_demo_unicode.py
 ```
 
 ---
@@ -249,7 +251,7 @@ powershell -ExecutionPolicy Bypass -File .\backend\scripts\repair-demo-unicode.p
 ## 🧪 测试与质量
 
 ### 后端
-```powershell
+```bash
 cd backend
 # 运行单元测试
 pytest tests/
@@ -260,7 +262,7 @@ ruff check .
 ```
 
 ### 前端
-```powershell
+```bash
 cd front
 # 运行 Lint
 npm run lint
@@ -272,8 +274,8 @@ npm run type-check
 
 推荐在基础设施或 worker 变更后运行：
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\backend\scripts\local-integration.ps1 -StartInfra
+```bash
+python backend/scripts/local_integration.py --start-infra
 ```
 
 ---

@@ -38,8 +38,8 @@ This document records the reliability hardening completed for the Kafka-backed d
 ## Operator Recovery Flow
 
 1. Confirm the stack is healthy.
-   - `docker compose -f .\backend\docker-compose.yaml ps`
-   - `Invoke-WebRequest -UseBasicParsing http://localhost:38084/health`
+   - `docker compose -f backend/docker-compose.yaml ps`
+   - `curl http://localhost:38084/health`
 2. Inspect document statuses.
    - Failed documents should show an explicit `error_msg`.
    - Queue-dispatch failures now surface as `Upload queue dispatch failed` or `Retry queue dispatch failed`.
@@ -53,18 +53,18 @@ This document records the reliability hardening completed for the Kafka-backed d
      - `rag.document.parsed.dlq`
      - `rag.document.chunks.dlq`
    - Quick inspection helper:
-     - `powershell -ExecutionPolicy Bypass -File .\backend\scripts\kafka-dlq.ps1 -Topic rag.document.upload.dlq`
+     - `python backend/scripts/kafka_dlq.py show --topic rag.document.upload.dlq`
 4. Fix the root cause first.
    - Examples: broken parser input, missing artifact path, temporary Kafka outage, Milvus or Elasticsearch availability.
 5. Recover the document.
    - If the document is already marked `failed`, use the existing retry flow from the API/UI.
    - If the failure only exists in the DLQ, republish the original payload after the root cause is fixed.
    - Replay helper:
-     - `powershell -ExecutionPolicy Bypass -File .\backend\scripts\replay-kafka-dlq.ps1 -Topic rag.document.upload.dlq -Partition 0 -Offset <offset>`
+     - `python backend/scripts/kafka_dlq.py replay --topic rag.document.upload.dlq --partition 0 --offset <offset>`
    - Guardrail:
      - the replay helper refuses to resend DLQ records whose `payload` is not valid JSON
 6. Re-run the local integration smoke test if the issue affected infrastructure or workers.
-   - `powershell -ExecutionPolicy Bypass -File .\backend\scripts\local-integration.ps1`
+   - `python backend/scripts/local_integration.py`
 
 ## Notes
 

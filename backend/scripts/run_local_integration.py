@@ -145,7 +145,7 @@ def ensure_api_reachable(base_url: str, timeout: float) -> None:
     except httpx.HTTPError as exc:
         raise IntegrationError(
             f"Backend API is not reachable at {health_url}. "
-            "Start the backend first or run backend/scripts/local-integration.ps1."
+            "Start the backend first or run backend/scripts/local_integration.py."
         ) from exc
 
     if response.status_code != 200:

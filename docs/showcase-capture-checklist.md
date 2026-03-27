@@ -19,7 +19,7 @@ This checklist helps prepare clean screenshots, short recordings, and portfolio-
 - A document progressing or completed in the ingestion pipeline.
 - Chat page with a grounded answer and references.
 - API docs or health endpoint for technical credibility.
-- Terminal view of `status-rag-stack.ps1` or `logs-rag-stack.ps1`.
+- Terminal view of `python backend/scripts/rag_stack.py status` or `python backend/scripts/rag_stack.py logs`.
 
 ## Recommended Short Recordings
 
