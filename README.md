@@ -257,6 +257,8 @@ powershell -ExecutionPolicy Bypass -File .\backend\scripts\local-integration.ps1
 - [docs/teaching/04-answer-generation.md](docs/teaching/04-answer-generation.md)
 - [docs/teaching/05-system-components.md](docs/teaching/05-system-components.md)
 - [docs/teaching/06-debug-and-validation.md](docs/teaching/06-debug-and-validation.md)
+- [docs/teaching/07-architecture-and-sequence-diagrams.md](docs/teaching/07-architecture-and-sequence-diagrams.md)
+- [docs/teaching/08-simplified-data-flow.md](docs/teaching/08-simplified-data-flow.md)
 
 ---
 

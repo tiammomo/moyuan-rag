@@ -10,6 +10,8 @@
 4. [04-answer-generation.md](./04-answer-generation.md)
 5. [05-system-components.md](./05-system-components.md)
 6. [06-debug-and-validation.md](./06-debug-and-validation.md)
+7. [07-architecture-and-sequence-diagrams.md](./07-architecture-and-sequence-diagrams.md)
+8. [08-simplified-data-flow.md](./08-simplified-data-flow.md)
 
 ## 这套教学内容会回答什么
 
@@ -20,6 +22,8 @@
 - 混合检索的融合、重排、阈值过滤是怎么串起来的
 - 生成答案时上下文是怎么组装的
 - 出问题时应该从哪里排查
+- 怎么用图把整个 RAG 结构讲给别人
+- 怎么用最简单的数据流图解释“文档变知识、问题变答案”
 
 ## 适合谁看
 

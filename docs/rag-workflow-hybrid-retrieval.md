@@ -163,6 +163,8 @@ uploading -> parsing -> splitting -> embedding -> completed / failed
 - [teaching/04-answer-generation.md](./teaching/04-answer-generation.md)
 - [teaching/05-system-components.md](./teaching/05-system-components.md)
 - [teaching/06-debug-and-validation.md](./teaching/06-debug-and-validation.md)
+- [teaching/07-architecture-and-sequence-diagrams.md](./teaching/07-architecture-and-sequence-diagrams.md)
+- [teaching/08-simplified-data-flow.md](./teaching/08-simplified-data-flow.md)
 
 ## 最简短的对外讲法
 
