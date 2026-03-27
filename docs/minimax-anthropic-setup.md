@@ -127,3 +127,4 @@ https://api.minimaxi.com/anthropic/v1/messages
 - [rag-workflow-hybrid-retrieval.md](./rag-workflow-hybrid-retrieval.md)
 - [teaching/03-hybrid-retrieval.md](./teaching/03-hybrid-retrieval.md)
 - [local-integration.md](./local-integration.md)
+- [demo-data-utf8-repair.md](./demo-data-utf8-repair.md)

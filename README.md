@@ -153,6 +153,7 @@ powershell -ExecutionPolicy Bypass -File .\backend\scripts\stop-rag-stack.ps1
 - [docs/compose-troubleshooting.md](docs/compose-troubleshooting.md)
 - [docs/local-integration.md](docs/local-integration.md)
 - [docs/minimax-anthropic-setup.md](docs/minimax-anthropic-setup.md)
+- [docs/demo-data-utf8-repair.md](docs/demo-data-utf8-repair.md)
 
 ### 4. 手工开发模式
 
@@ -203,6 +204,14 @@ npm run dev
 更详细的接入说明、限制和排障见：
 
 - [docs/minimax-anthropic-setup.md](docs/minimax-anthropic-setup.md)
+- [docs/demo-data-utf8-repair.md](docs/demo-data-utf8-repair.md)
+
+如果你需要通过脚本修复或重建中文 demo 数据，推荐直接使用仓库里的 UTF-8 安全修复入口：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\backend\scripts\repair-demo-unicode.ps1 -DryRun
+powershell -ExecutionPolicy Bypass -File .\backend\scripts\repair-demo-unicode.ps1
+```
 
 ---
 
@@ -287,6 +296,7 @@ powershell -ExecutionPolicy Bypass -File .\backend\scripts\local-integration.ps1
 - [docs/README.md](docs/README.md)
 - [docs/rag-workflow-hybrid-retrieval.md](docs/rag-workflow-hybrid-retrieval.md)
 - [docs/minimax-anthropic-setup.md](docs/minimax-anthropic-setup.md)
+- [docs/demo-data-utf8-repair.md](docs/demo-data-utf8-repair.md)
 
 ## RAG 教学文档
 

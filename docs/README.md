@@ -22,6 +22,7 @@
 如果你要给 RAG 机器人接入外部大模型，可以从这里开始：
 
 - [minimax-anthropic-setup.md](./minimax-anthropic-setup.md)
+- [demo-data-utf8-repair.md](./demo-data-utf8-repair.md)
 
 ## 运维与联调
 
