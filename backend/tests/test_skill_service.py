@@ -9,7 +9,50 @@ from fastapi import HTTPException
 from starlette.datastructures import UploadFile
 
 from app.core.config import settings
+from app.models.skill_audit_log import SkillAuditLog
+from app.models.skill_install_task import SkillInstallTask
 from app.services.skill_service import skill_service
+
+
+class FakeRowsResult:
+    def __init__(self, rows):
+        self._rows = rows
+
+    def all(self):
+        return self._rows
+
+
+class FakeSession:
+    def __init__(self, results=None):
+        self._results = list(results or [])
+        self.added = []
+        self.deleted = []
+        self.commits = 0
+        self.rollbacks = 0
+        self._next_id = 1
+
+    def add(self, obj):
+        if getattr(obj, "id", None) is None:
+            obj.id = self._next_id
+            self._next_id += 1
+        self.added.append(obj)
+
+    async def delete(self, obj):
+        self.deleted.append(obj)
+
+    async def commit(self):
+        self.commits += 1
+
+    async def refresh(self, _obj):
+        return None
+
+    async def rollback(self):
+        self.rollbacks += 1
+
+    async def execute(self, _stmt):
+        if self._results:
+            return self._results.pop(0)
+        return FakeRowsResult([])
 
 
 def _write_demo_skill(root: Path, slug: str = "demo-skill", version: str = "0.1.0") -> None:
@@ -103,17 +146,21 @@ async def test_install_local_skill_writes_registry(tmp_path: Path):
         buf.seek(0)
 
         upload = UploadFile(filename="local-demo.zip", file=buf)
+        db = FakeSession()
         response = await skill_service.install_local_skill(
-            db=SimpleNamespace(execute=None),
+            db=db,
             package=upload,
-            current_user=SimpleNamespace(username="admin"),
+            current_user=SimpleNamespace(id=1, username="admin", role="admin"),
         )
         registry = json.loads((tmp_path / "registry" / "installed.json").read_text(encoding="utf-8"))
     finally:
         settings.SKILL_INSTALL_ROOT = original_root
 
     assert response.skill.slug == "local-demo"
+    assert response.install_task_id is not None
     assert registry["skills"][0]["slug"] == "local-demo"
+    assert any(isinstance(item, SkillInstallTask) and item.status == "installed" for item in db.added)
+    assert any(isinstance(item, SkillAuditLog) and item.action == "skill.install_local" for item in db.added)
 
 
 @pytest.mark.asyncio
@@ -121,9 +168,19 @@ async def test_remote_install_rejected_when_disabled():
     original_flag = settings.ENABLE_REMOTE_SKILL_INSTALL
     settings.ENABLE_REMOTE_SKILL_INSTALL = False
     try:
+        db = FakeSession()
         with pytest.raises(HTTPException) as exc_info:
-            await skill_service.install_remote_skill("https://example.com/demo.zip", None)
+            await skill_service.install_remote_skill(
+                db,
+                package_url="https://example.com/demo.zip",
+                checksum=None,
+                signature=None,
+                signature_algorithm=None,
+                current_user=SimpleNamespace(id=1, username="admin", role="admin"),
+            )
     finally:
         settings.ENABLE_REMOTE_SKILL_INSTALL = original_flag
 
     assert exc_info.value.status_code == 403
+    assert any(isinstance(item, SkillInstallTask) and item.status == "rejected" for item in db.added)
+    assert any(isinstance(item, SkillAuditLog) and item.action == "skill.install_remote" for item in db.added)

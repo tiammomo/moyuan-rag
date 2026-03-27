@@ -1,10 +1,11 @@
 # Docs Index
 
-本目录按「RAG 教学、模型接入、运维联调、Skills 能力、对外投递材料」组织。
+本文档目录按 `RAG 教学`、`模型接入`、`运维联调`、`Skills 能力`、`投递材料` 五类组织，方便快速定位。
 
 ## RAG 教学
 
 建议按顺序阅读：
+
 - [teaching/README.md](./teaching/README.md)
 - [teaching/01-rag-overview.md](./teaching/01-rag-overview.md)
 - [teaching/02-document-ingestion-workflow.md](./teaching/02-document-ingestion-workflow.md)
@@ -36,12 +37,16 @@
 - [skills-definition-and-boundary.md](./skills-definition-and-boundary.md)
 - [skills-architecture.md](./skills-architecture.md)
 - [skills-remote-install-security.md](./skills-remote-install-security.md)
+- [skills-governance-hardening.md](./skills-governance-hardening.md)
+- [skills-versioning-and-rollback.md](./skills-versioning-and-rollback.md)
+- [skills-remote-allowlist-runbook.md](./skills-remote-allowlist-runbook.md)
 - [skills-bootstrap-slice.md](./skills-bootstrap-slice.md)
 - [skills-runtime-integration.md](./skills-runtime-integration.md)
-- [skills-marketplace-hardening-plan.md](./skills-marketplace-hardening-plan.md)
+- [skills-admin-console-plan.md](./skills-admin-console-plan.md)
 
-## 其他规划
+## 当前活动规划
 
+- [skills-admin-console-plan.md](./skills-admin-console-plan.md)
 - [outreach-assets-plan.md](./outreach-assets-plan.md)
 - [teaching-examples-plan.md](./teaching-examples-plan.md)
 

@@ -14,6 +14,7 @@ import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 import yaml
 from fastapi import HTTPException, UploadFile, status
@@ -22,14 +23,20 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.models.robot import Robot
+from app.models.skill_audit_log import SkillAuditLog
+from app.models.skill_install_task import SkillInstallTask
 from app.models.robot_skill_binding import RobotSkillBinding
 from app.models.user import User
 from app.schemas.skill import (
     RuntimeSkillPromptBundle,
+    SkillAuditLogEntry,
+    SkillAuditLogListResponse,
     SkillBindingCreate,
     SkillBindingUpdate,
     SkillDetail,
     SkillInstallResponse,
+    SkillInstallTaskInfo,
+    SkillInstallTaskListResponse,
     SkillListItem,
     SkillPromptFile,
     SkillRobotBindingDetail,
@@ -273,18 +280,220 @@ class SkillService:
         registry["skills"].sort(key=lambda item: item["slug"])
         self._write_registry(registry)
 
+    def _supports_persistence(self, db: AsyncSession) -> bool:
+        return all(hasattr(db, attr) for attr in ("add", "commit", "refresh"))
+
+    def _error_message(self, exc: Exception) -> str:
+        if isinstance(exc, HTTPException):
+            return str(exc.detail)
+        return str(exc)
+
+    def _merge_details(self, existing: dict[str, Any] | None, patch: dict[str, Any] | None) -> dict[str, Any]:
+        merged = dict(existing or {})
+        for key, value in (patch or {}).items():
+            if value is not None:
+                merged[key] = value
+        return merged
+
+    async def _create_install_task(
+        self,
+        db: AsyncSession,
+        *,
+        source_type: str,
+        package_name: str | None,
+        package_url: str | None,
+        package_checksum: str | None,
+        package_signature: str | None,
+        signature_algorithm: str | None,
+        current_user: User,
+        details: dict[str, Any] | None = None,
+    ) -> SkillInstallTask | None:
+        if not self._supports_persistence(db):
+            return None
+
+        task = SkillInstallTask(
+            source_type=source_type,
+            package_name=package_name,
+            package_url=package_url,
+            package_checksum=package_checksum,
+            package_signature=package_signature,
+            signature_algorithm=signature_algorithm,
+            requested_by_user_id=getattr(current_user, "id", None),
+            requested_by_username=getattr(current_user, "username", None),
+            status="pending",
+            details=details or {},
+        )
+        db.add(task)
+        await db.commit()
+        await db.refresh(task)
+        return task
+
+    async def _update_install_task(
+        self,
+        db: AsyncSession,
+        task: SkillInstallTask | None,
+        *,
+        status_value: str,
+        package_checksum: str | None = None,
+        error_message: str | None = None,
+        installed_skill_slug: str | None = None,
+        installed_skill_version: str | None = None,
+        details: dict[str, Any] | None = None,
+        finished: bool = False,
+    ) -> SkillInstallTask | None:
+        if task is None or not self._supports_persistence(db):
+            return task
+
+        task.status = status_value
+        if package_checksum is not None:
+            task.package_checksum = package_checksum
+        if error_message is not None:
+            task.error_message = error_message
+        if installed_skill_slug is not None:
+            task.installed_skill_slug = installed_skill_slug
+        if installed_skill_version is not None:
+            task.installed_skill_version = installed_skill_version
+        task.details = self._merge_details(task.details, details)
+        if finished:
+            task.finished_at = datetime.now(timezone.utc)
+        await db.commit()
+        await db.refresh(task)
+        return task
+
+    async def _record_audit_log(
+        self,
+        db: AsyncSession,
+        *,
+        action: str,
+        target_type: str,
+        status_value: str,
+        current_user: User,
+        message: str | None = None,
+        robot_id: int | None = None,
+        skill_slug: str | None = None,
+        skill_version: str | None = None,
+        install_task_id: int | None = None,
+        details: dict[str, Any] | None = None,
+    ) -> SkillAuditLog | None:
+        if not self._supports_persistence(db):
+            return None
+
+        log = SkillAuditLog(
+            action=action,
+            target_type=target_type,
+            status=status_value,
+            actor_user_id=getattr(current_user, "id", None),
+            actor_username=getattr(current_user, "username", None),
+            actor_role=getattr(current_user, "role", None),
+            robot_id=robot_id,
+            skill_slug=skill_slug,
+            skill_version=skill_version,
+            install_task_id=install_task_id,
+            message=message,
+            details=details or {},
+        )
+        db.add(log)
+        await db.commit()
+        await db.refresh(log)
+        return log
+
+    def _validate_remote_install_request(
+        self,
+        package_url: str,
+        checksum: str | None,
+        signature: str | None,
+    ) -> str:
+        parsed = urlparse(package_url)
+        host = (parsed.hostname or "").lower()
+        if parsed.scheme not in {"http", "https"} or not host:
+            raise HTTPException(status_code=400, detail="Remote skill package URL must be an absolute http(s) URL.")
+
+        allowed_hosts = settings.SKILL_REMOTE_ALLOWED_HOSTS_LIST
+        if allowed_hosts and host not in allowed_hosts:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Remote skill host {host} is not in the allowlist.",
+            )
+
+        if settings.SKILL_REMOTE_REQUIRE_CHECKSUM and not checksum:
+            raise HTTPException(status_code=400, detail="Checksum is required for remote skill installation.")
+
+        if settings.SKILL_REMOTE_REQUIRE_SIGNATURE and not signature:
+            raise HTTPException(status_code=400, detail="Signature is required for remote skill installation.")
+
+        return host
+
+    async def list_install_tasks(
+        self,
+        db: AsyncSession,
+        *,
+        skip: int = 0,
+        limit: int = 50,
+        status_filter: str | None = None,
+    ) -> SkillInstallTaskListResponse:
+        stmt = select(SkillInstallTask).order_by(SkillInstallTask.created_at.desc())
+        count_stmt = select(func.count(SkillInstallTask.id))
+
+        if status_filter:
+            stmt = stmt.where(SkillInstallTask.status == status_filter)
+            count_stmt = count_stmt.where(SkillInstallTask.status == status_filter)
+
+        total_result = await db.execute(count_stmt)
+        result = await db.execute(stmt.offset(skip).limit(limit))
+        items = [SkillInstallTaskInfo.model_validate(item) for item in result.scalars().all()]
+        return SkillInstallTaskListResponse(total=total_result.scalar_one(), items=items)
+
+    async def list_audit_logs(
+        self,
+        db: AsyncSession,
+        *,
+        skip: int = 0,
+        limit: int = 100,
+        action_filter: str | None = None,
+    ) -> SkillAuditLogListResponse:
+        stmt = select(SkillAuditLog).order_by(SkillAuditLog.created_at.desc())
+        count_stmt = select(func.count(SkillAuditLog.id))
+
+        if action_filter:
+            stmt = stmt.where(SkillAuditLog.action == action_filter)
+            count_stmt = count_stmt.where(SkillAuditLog.action == action_filter)
+
+        total_result = await db.execute(count_stmt)
+        result = await db.execute(stmt.offset(skip).limit(limit))
+        items = [SkillAuditLogEntry.model_validate(item) for item in result.scalars().all()]
+        return SkillAuditLogListResponse(total=total_result.scalar_one(), items=items)
+
     async def install_local_skill(self, db: AsyncSession, package: UploadFile, current_user: User) -> SkillInstallResponse:
         if not package.filename or not package.filename.lower().endswith(".zip"):
             raise HTTPException(status_code=400, detail="Only .zip skill packages are supported")
 
         self.ensure_layout()
         package_bytes = await package.read()
+        package_checksum = self._sha256(package_bytes)
         archive_name = f"{uuid.uuid4().hex}-{os.path.basename(package.filename)}"
         archive_path = self.uploads_dir / archive_name
         archive_path.write_bytes(package_bytes)
+        install_task = await self._create_install_task(
+            db,
+            source_type="local",
+            package_name=package.filename,
+            package_url=None,
+            package_checksum=package_checksum,
+            package_signature=None,
+            signature_algorithm=None,
+            current_user=current_user,
+            details={"archive_name": archive_name},
+        )
 
         quarantine_root = self.quarantine_dir / uuid.uuid4().hex
         try:
+            await self._update_install_task(
+                db,
+                install_task,
+                status_value="extracting",
+                package_checksum=package_checksum,
+                details={"quarantine_root": quarantine_root.name},
+            )
             self._safe_extract_zip(archive_path, quarantine_root)
             skill_root = self._find_skill_root(quarantine_root)
             manifest = self._validate_skill_root(skill_root)
@@ -306,7 +515,7 @@ class SkillService:
                 "category": manifest.get("category"),
                 "source_type": "local",
                 "status": "active",
-                "checksum": self._sha256(package_bytes),
+                "checksum": package_checksum,
                 "install_path": target_dir.relative_to(self.install_root).as_posix(),
                 "manifest_path": (target_dir / "skill.yaml").relative_to(self.install_root).as_posix(),
                 "readme_path": (target_dir / "SKILL.md").relative_to(self.install_root).as_posix(),
@@ -314,22 +523,136 @@ class SkillService:
                 "installed_by": getattr(current_user, "username", None),
             }
             self._upsert_registry_record(record)
+            await self._update_install_task(
+                db,
+                install_task,
+                status_value="installed",
+                package_checksum=package_checksum,
+                installed_skill_slug=slug,
+                installed_skill_version=version,
+                details={"install_path": record["install_path"]},
+                finished=True,
+            )
+            await self._record_audit_log(
+                db,
+                action="skill.install_local",
+                target_type="skill_install",
+                status_value="success",
+                current_user=current_user,
+                message="Local skill package installed successfully.",
+                skill_slug=slug,
+                skill_version=version,
+                install_task_id=getattr(install_task, "id", None),
+                details={"package_name": package.filename, "checksum": package_checksum},
+            )
             detail = await self.get_skill_detail(db, slug)
-            return SkillInstallResponse(message="Skill installed successfully", skill=detail)
+            return SkillInstallResponse(
+                message="Skill installed successfully",
+                skill=detail,
+                install_task_id=getattr(install_task, "id", None),
+            )
+        except Exception as exc:
+            if hasattr(db, "rollback"):
+                await db.rollback()
+            await self._update_install_task(
+                db,
+                install_task,
+                status_value="failed",
+                package_checksum=package_checksum,
+                error_message=self._error_message(exc),
+                details={"package_name": package.filename},
+                finished=True,
+            )
+            await self._record_audit_log(
+                db,
+                action="skill.install_local",
+                target_type="skill_install",
+                status_value="failed",
+                current_user=current_user,
+                message=self._error_message(exc),
+                install_task_id=getattr(install_task, "id", None),
+                details={"package_name": package.filename, "checksum": package_checksum},
+            )
+            raise
         finally:
             shutil.rmtree(quarantine_root, ignore_errors=True)
 
-    async def install_remote_skill(self, package_url: str, checksum: str | None) -> None:
-        _ = (package_url, checksum)
+    async def install_remote_skill(
+        self,
+        db: AsyncSession,
+        *,
+        package_url: str,
+        checksum: str | None,
+        signature: str | None,
+        signature_algorithm: str | None,
+        current_user: User,
+    ) -> SkillInstallTask | None:
+        install_task = await self._create_install_task(
+            db,
+            source_type="remote",
+            package_name=None,
+            package_url=package_url,
+            package_checksum=checksum,
+            package_signature=signature,
+            signature_algorithm=signature_algorithm,
+            current_user=current_user,
+        )
         if not settings.ENABLE_REMOTE_SKILL_INSTALL:
+            await self._update_install_task(
+                db,
+                install_task,
+                status_value="rejected",
+                error_message="Remote skill install is disabled.",
+                finished=True,
+            )
+            await self._record_audit_log(
+                db,
+                action="skill.install_remote",
+                target_type="skill_install",
+                status_value="rejected",
+                current_user=current_user,
+                message="Remote skill install is disabled.",
+                install_task_id=getattr(install_task, "id", None),
+                details={"package_url": package_url},
+            )
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Remote skill install is disabled. Enable ENABLE_REMOTE_SKILL_INSTALL to use this endpoint.",
             )
 
+        host = self._validate_remote_install_request(package_url, checksum, signature)
+        await self._update_install_task(
+            db,
+            install_task,
+            status_value="verifying",
+            details={"host": host},
+        )
+        await self._update_install_task(
+            db,
+            install_task,
+            status_value="failed",
+            error_message="Remote skill install is not implemented in the current controlled phase.",
+            details={"host": host},
+            finished=True,
+        )
+        await self._record_audit_log(
+            db,
+            action="skill.install_remote",
+            target_type="skill_install",
+            status_value="failed",
+            current_user=current_user,
+            message="Remote skill install is not implemented in the current controlled phase.",
+            install_task_id=getattr(install_task, "id", None),
+            details={
+                "package_url": package_url,
+                "checksum": checksum,
+                "host": host,
+                "signature_algorithm": signature_algorithm,
+            },
+        )
         raise HTTPException(
             status_code=status.HTTP_501_NOT_IMPLEMENTED,
-            detail="Remote skill install is not implemented in the bootstrap slice.",
+            detail="Remote skill install is not implemented in the current controlled phase.",
         )
 
     async def get_robot_bindings(
@@ -467,41 +790,72 @@ class SkillService:
         payload: SkillBindingCreate,
         current_user: User,
     ) -> SkillRobotBindingDetail:
-        robot = await self._get_robot_for_binding(db, robot_id, current_user)
-        detail = await self.get_skill_detail(db, skill_slug)
-        self._validate_skill_constraints(robot, detail)
+        detail: SkillDetail | None = None
+        try:
+            robot = await self._get_robot_for_binding(db, robot_id, current_user)
+            detail = await self.get_skill_detail(db, skill_slug)
+            self._validate_skill_constraints(robot, detail)
 
-        result = await db.execute(
-            select(RobotSkillBinding).where(
-                RobotSkillBinding.robot_id == robot_id,
-                RobotSkillBinding.skill_slug == skill_slug,
+            result = await db.execute(
+                select(RobotSkillBinding).where(
+                    RobotSkillBinding.robot_id == robot_id,
+                    RobotSkillBinding.skill_slug == skill_slug,
+                )
             )
-        )
-        binding = result.scalar_one_or_none()
+            binding = result.scalar_one_or_none()
 
-        if binding is None:
-            count_result = await db.execute(
-                select(func.count(RobotSkillBinding.id)).where(RobotSkillBinding.robot_id == robot_id)
-            )
-            next_priority = payload.priority or (count_result.scalar_one() + 1) * 100
-            binding = RobotSkillBinding(
+            if binding is None:
+                count_result = await db.execute(
+                    select(func.count(RobotSkillBinding.id)).where(RobotSkillBinding.robot_id == robot_id)
+                )
+                next_priority = payload.priority or (count_result.scalar_one() + 1) * 100
+                binding = RobotSkillBinding(
+                    robot_id=robot_id,
+                    skill_slug=skill_slug,
+                    skill_version=detail.version,
+                    binding_config=payload.binding_config,
+                    priority=next_priority,
+                    status=payload.status,
+                )
+                db.add(binding)
+            else:
+                binding.skill_version = detail.version
+                binding.binding_config = payload.binding_config
+                binding.priority = payload.priority or binding.priority
+                binding.status = payload.status
+
+            await db.commit()
+            bindings = await self.get_robot_skill_bindings(db, robot_id, current_user)
+            bound = next(item for item in bindings if item.skill_slug == skill_slug)
+            await self._record_audit_log(
+                db,
+                action="skill.bind",
+                target_type="robot_skill_binding",
+                status_value="success",
+                current_user=current_user,
+                message="Skill bound to robot successfully.",
                 robot_id=robot_id,
                 skill_slug=skill_slug,
-                skill_version=detail.version,
-                binding_config=payload.binding_config,
-                priority=next_priority,
-                status=payload.status,
+                skill_version=bound.skill_version,
+                details={"priority": bound.priority, "status": bound.status},
             )
-            db.add(binding)
-        else:
-            binding.skill_version = detail.version
-            binding.binding_config = payload.binding_config
-            binding.priority = payload.priority or binding.priority
-            binding.status = payload.status
-
-        await db.commit()
-        bindings = await self.get_robot_skill_bindings(db, robot_id, current_user)
-        return next(item for item in bindings if item.skill_slug == skill_slug)
+            return bound
+        except Exception as exc:
+            if hasattr(db, "rollback"):
+                await db.rollback()
+            await self._record_audit_log(
+                db,
+                action="skill.bind",
+                target_type="robot_skill_binding",
+                status_value="failed",
+                current_user=current_user,
+                message=self._error_message(exc),
+                robot_id=robot_id,
+                skill_slug=skill_slug,
+                skill_version=detail.version if detail else None,
+                details={"requested_status": payload.status},
+            )
+            raise
 
     async def update_robot_skill_binding(
         self,
@@ -511,30 +865,61 @@ class SkillService:
         payload: SkillBindingUpdate,
         current_user: User,
     ) -> SkillRobotBindingDetail:
-        robot = await self._get_robot_for_binding(db, robot_id, current_user)
-        detail = await self.get_skill_detail(db, skill_slug)
-        if payload.status != "disabled":
-            self._validate_skill_constraints(robot, detail)
-        result = await db.execute(
-            select(RobotSkillBinding).where(
-                RobotSkillBinding.robot_id == robot_id,
-                RobotSkillBinding.skill_slug == skill_slug,
+        detail: SkillDetail | None = None
+        try:
+            robot = await self._get_robot_for_binding(db, robot_id, current_user)
+            detail = await self.get_skill_detail(db, skill_slug)
+            if payload.status != "disabled":
+                self._validate_skill_constraints(robot, detail)
+            result = await db.execute(
+                select(RobotSkillBinding).where(
+                    RobotSkillBinding.robot_id == robot_id,
+                    RobotSkillBinding.skill_slug == skill_slug,
+                )
             )
-        )
-        binding = result.scalar_one_or_none()
-        if not binding:
-            raise HTTPException(status_code=404, detail="Skill binding not found")
+            binding = result.scalar_one_or_none()
+            if not binding:
+                raise HTTPException(status_code=404, detail="Skill binding not found")
 
-        if payload.priority is not None:
-            binding.priority = payload.priority
-        if payload.status is not None:
-            binding.status = payload.status
-        if payload.binding_config is not None:
-            binding.binding_config = payload.binding_config
+            if payload.priority is not None:
+                binding.priority = payload.priority
+            if payload.status is not None:
+                binding.status = payload.status
+            if payload.binding_config is not None:
+                binding.binding_config = payload.binding_config
 
-        await db.commit()
-        bindings = await self.get_robot_skill_bindings(db, robot_id, current_user)
-        return next(item for item in bindings if item.skill_slug == skill_slug)
+            await db.commit()
+            bindings = await self.get_robot_skill_bindings(db, robot_id, current_user)
+            updated = next(item for item in bindings if item.skill_slug == skill_slug)
+            await self._record_audit_log(
+                db,
+                action="skill.update_binding",
+                target_type="robot_skill_binding",
+                status_value="success",
+                current_user=current_user,
+                message="Skill binding updated successfully.",
+                robot_id=robot_id,
+                skill_slug=skill_slug,
+                skill_version=updated.skill_version,
+                details={"priority": updated.priority, "status": updated.status},
+            )
+            return updated
+        except Exception as exc:
+            if hasattr(db, "rollback"):
+                await db.rollback()
+            await self._record_audit_log(
+                db,
+                action="skill.update_binding",
+                target_type="robot_skill_binding",
+                status_value="failed",
+                current_user=current_user,
+                message=self._error_message(exc),
+                robot_id=robot_id,
+                skill_slug=skill_slug,
+                skill_version=detail.version if detail else None,
+                details={"requested_priority": payload.priority, "requested_status": payload.status},
+            )
+            raise
 
     async def unbind_skill_from_robot(
         self,
@@ -543,19 +928,46 @@ class SkillService:
         skill_slug: str,
         current_user: User,
     ) -> None:
-        await self._get_robot_for_binding(db, robot_id, current_user)
-        result = await db.execute(
-            select(RobotSkillBinding).where(
-                RobotSkillBinding.robot_id == robot_id,
-                RobotSkillBinding.skill_slug == skill_slug,
+        try:
+            await self._get_robot_for_binding(db, robot_id, current_user)
+            result = await db.execute(
+                select(RobotSkillBinding).where(
+                    RobotSkillBinding.robot_id == robot_id,
+                    RobotSkillBinding.skill_slug == skill_slug,
+                )
             )
-        )
-        binding = result.scalar_one_or_none()
-        if not binding:
-            raise HTTPException(status_code=404, detail="Skill binding not found")
+            binding = result.scalar_one_or_none()
+            if not binding:
+                raise HTTPException(status_code=404, detail="Skill binding not found")
 
-        await db.delete(binding)
-        await db.commit()
+            skill_version = binding.skill_version
+            await db.delete(binding)
+            await db.commit()
+            await self._record_audit_log(
+                db,
+                action="skill.unbind",
+                target_type="robot_skill_binding",
+                status_value="success",
+                current_user=current_user,
+                message="Skill binding removed successfully.",
+                robot_id=robot_id,
+                skill_slug=skill_slug,
+                skill_version=skill_version,
+            )
+        except Exception as exc:
+            if hasattr(db, "rollback"):
+                await db.rollback()
+            await self._record_audit_log(
+                db,
+                action="skill.unbind",
+                target_type="robot_skill_binding",
+                status_value="failed",
+                current_user=current_user,
+                message=self._error_message(exc),
+                robot_id=robot_id,
+                skill_slug=skill_slug,
+            )
+            raise
 
 
 skill_service = SkillService()

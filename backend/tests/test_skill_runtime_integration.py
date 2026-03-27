@@ -9,8 +9,11 @@ import pytest
 from fastapi import HTTPException
 
 from app.core.config import settings
+from app.models.robot_skill_binding import RobotSkillBinding
+from app.models.skill_audit_log import SkillAuditLog
 from app.schemas.chat import ChatResponse
 from app.schemas.chat import RetrievedContext
+from app.schemas.skill import SkillDetail
 from app.schemas.skill import SkillRobotBindingDetail
 from app.services.rag_service import rag_service
 from app.services.skill_service import skill_service
@@ -88,6 +91,42 @@ class QueueDB:
 
     async def execute(self, _stmt):
         return self._results.pop(0)
+
+
+class FakeCountResult:
+    def __init__(self, value):
+        self._value = value
+
+    def scalar_one(self):
+        return self._value
+
+
+class PersistQueueDB(QueueDB):
+    def __init__(self, results):
+        super().__init__(results)
+        self.added = []
+        self.deleted = []
+        self.commits = 0
+        self.rollbacks = 0
+        self._next_id = 1
+
+    def add(self, obj):
+        if getattr(obj, "id", None) is None:
+            obj.id = self._next_id
+            self._next_id += 1
+        self.added.append(obj)
+
+    async def delete(self, obj):
+        self.deleted.append(obj)
+
+    async def commit(self):
+        self.commits += 1
+
+    async def refresh(self, _obj):
+        return None
+
+    async def rollback(self):
+        self.rollbacks += 1
 
 
 def _registry_record(slug: str, name: str, version: str = "0.1.0") -> dict[str, str]:
@@ -263,3 +302,144 @@ async def test_chat_with_context_applies_retrieval_skill_guidance(monkeypatch):
 
     assert "Skill Retrieval Guidance" in captured["query"]
     assert response.answer == "ok"
+
+
+@pytest.mark.asyncio
+async def test_bind_skill_writes_audit_log(monkeypatch):
+    db = PersistQueueDB([FakeScalarResult(None), FakeCountResult(0)])
+
+    async def fake_get_robot(_db, robot_id, current_user):
+        return SimpleNamespace(id=robot_id, user_id=current_user.id, name="Demo Robot")
+
+    async def fake_get_skill_detail(_db, _slug):
+        return SkillDetail(
+            slug="rag-citation-guide",
+            name="RAG Citation Guide",
+            version="0.1.0",
+            description="Guide",
+            category="answering",
+            source_type="local",
+            status="active",
+            install_path="extracted/rag-citation-guide/0.1.0",
+            installed_at="2026-03-27T12:00:00+08:00",
+            readme_available=True,
+        )
+
+    async def fake_get_bindings(_db, robot_id, current_user):
+        _ = current_user
+        return [
+            SkillRobotBindingDetail(
+                robot_id=robot_id,
+                robot_name="Demo Robot",
+                skill_slug="rag-citation-guide",
+                skill_name="RAG Citation Guide",
+                skill_version="0.1.0",
+                category="answering",
+                skill_description="Guide",
+                priority=100,
+                status="active",
+                prompt_keys=["system_prompt"],
+                binding_config={},
+                created_at=datetime.now(timezone.utc),
+                updated_at=datetime.now(timezone.utc),
+            )
+        ]
+
+    monkeypatch.setattr(skill_service, "_get_robot_for_binding", fake_get_robot)
+    monkeypatch.setattr(skill_service, "get_skill_detail", fake_get_skill_detail)
+    monkeypatch.setattr(skill_service, "get_robot_skill_bindings", fake_get_bindings)
+
+    await skill_service.bind_skill_to_robot(
+        db=db,
+        robot_id=1,
+        skill_slug="rag-citation-guide",
+        payload=SimpleNamespace(priority=None, status="active", binding_config={}),
+        current_user=SimpleNamespace(id=1, username="alice", role="user"),
+    )
+
+    assert any(isinstance(item, RobotSkillBinding) for item in db.added)
+    assert any(
+        isinstance(item, SkillAuditLog) and item.action == "skill.bind" and item.status == "success"
+        for item in db.added
+    )
+
+
+@pytest.mark.asyncio
+async def test_update_and_unbind_write_audit_logs(monkeypatch):
+    binding = RobotSkillBinding(
+        robot_id=1,
+        skill_slug="rag-citation-guide",
+        skill_version="0.1.0",
+        priority=100,
+        status="active",
+        binding_config={},
+    )
+    binding.id = 10
+
+    async def fake_get_robot(_db, robot_id, current_user):
+        return SimpleNamespace(id=robot_id, user_id=current_user.id, name="Demo Robot")
+
+    async def fake_get_skill_detail(_db, _slug):
+        return SkillDetail(
+            slug="rag-citation-guide",
+            name="RAG Citation Guide",
+            version="0.1.0",
+            description="Guide",
+            category="answering",
+            source_type="local",
+            status="active",
+            install_path="extracted/rag-citation-guide/0.1.0",
+            installed_at="2026-03-27T12:00:00+08:00",
+            readme_available=True,
+        )
+
+    async def fake_get_bindings(_db, robot_id, current_user):
+        _ = current_user
+        return [
+            SkillRobotBindingDetail(
+                robot_id=robot_id,
+                robot_name="Demo Robot",
+                skill_slug="rag-citation-guide",
+                skill_name="RAG Citation Guide",
+                skill_version="0.1.0",
+                category="answering",
+                skill_description="Guide",
+                priority=50,
+                status="disabled",
+                prompt_keys=["system_prompt"],
+                binding_config={},
+                created_at=datetime.now(timezone.utc),
+                updated_at=datetime.now(timezone.utc),
+            )
+        ]
+
+    monkeypatch.setattr(skill_service, "_get_robot_for_binding", fake_get_robot)
+    monkeypatch.setattr(skill_service, "get_skill_detail", fake_get_skill_detail)
+    monkeypatch.setattr(skill_service, "get_robot_skill_bindings", fake_get_bindings)
+
+    update_db = PersistQueueDB([FakeScalarResult(binding)])
+    await skill_service.update_robot_skill_binding(
+        db=update_db,
+        robot_id=1,
+        skill_slug="rag-citation-guide",
+        payload=SimpleNamespace(priority=50, status="disabled", binding_config={}),
+        current_user=SimpleNamespace(id=1, username="alice", role="user"),
+    )
+
+    unbind_db = PersistQueueDB([FakeScalarResult(binding)])
+    monkeypatch.setattr(skill_service, "_get_robot_for_binding", fake_get_robot)
+    await skill_service.unbind_skill_from_robot(
+        db=unbind_db,
+        robot_id=1,
+        skill_slug="rag-citation-guide",
+        current_user=SimpleNamespace(id=1, username="alice", role="user"),
+    )
+
+    assert any(
+        isinstance(item, SkillAuditLog) and item.action == "skill.update_binding" and item.status == "success"
+        for item in update_db.added
+    )
+    assert any(
+        isinstance(item, SkillAuditLog) and item.action == "skill.unbind" and item.status == "success"
+        for item in unbind_db.added
+    )

@@ -7,7 +7,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class SkillListItem(BaseModel):
@@ -61,11 +61,14 @@ class SkillDetail(SkillListItem):
 class SkillInstallResponse(BaseModel):
     message: str
     skill: SkillDetail
+    install_task_id: Optional[int] = None
 
 
 class SkillRemoteInstallRequest(BaseModel):
     package_url: str = Field(..., min_length=1)
     checksum: Optional[str] = None
+    signature: Optional[str] = None
+    signature_algorithm: Optional[str] = None
 
 
 class SkillBindingCreate(BaseModel):
@@ -85,3 +88,54 @@ class RuntimeSkillPromptBundle(BaseModel):
     system_prompts: List[str] = Field(default_factory=list)
     retrieval_prompts: List[str] = Field(default_factory=list)
     answer_prompts: List[str] = Field(default_factory=list)
+
+
+class SkillInstallTaskInfo(BaseModel):
+    id: int
+    source_type: str
+    package_name: Optional[str] = None
+    package_url: Optional[str] = None
+    package_checksum: Optional[str] = None
+    package_signature: Optional[str] = None
+    signature_algorithm: Optional[str] = None
+    requested_by_user_id: Optional[int] = None
+    requested_by_username: Optional[str] = None
+    status: str
+    installed_skill_slug: Optional[str] = None
+    installed_skill_version: Optional[str] = None
+    error_message: Optional[str] = None
+    details: Dict[str, Any] = Field(default_factory=dict)
+    created_at: datetime
+    updated_at: datetime
+    finished_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class SkillInstallTaskListResponse(BaseModel):
+    total: int
+    items: List[SkillInstallTaskInfo]
+
+
+class SkillAuditLogEntry(BaseModel):
+    id: int
+    action: str
+    target_type: str
+    status: str
+    actor_user_id: Optional[int] = None
+    actor_username: Optional[str] = None
+    actor_role: Optional[str] = None
+    robot_id: Optional[int] = None
+    skill_slug: Optional[str] = None
+    skill_version: Optional[str] = None
+    install_task_id: Optional[int] = None
+    message: Optional[str] = None
+    details: Dict[str, Any] = Field(default_factory=dict)
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class SkillAuditLogListResponse(BaseModel):
+    total: int
+    items: List[SkillAuditLogEntry]

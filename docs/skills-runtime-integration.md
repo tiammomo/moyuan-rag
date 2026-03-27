@@ -58,5 +58,6 @@ Reason:
 - The repository is still focused on stable local RAG delivery rather than a general plugin marketplace.
 - The current safety model is not yet ready for direct remote package ingestion in production-like environments.
 
-The next planning phase is documented in:
-- [skills-marketplace-hardening-plan.md](./skills-marketplace-hardening-plan.md)
+The next operator-facing phase is documented in:
+- [skills-governance-hardening.md](./skills-governance-hardening.md)
+- [skills-admin-console-plan.md](./skills-admin-console-plan.md)

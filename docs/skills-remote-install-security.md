@@ -2,50 +2,67 @@
 
 ## Current Project Decision
 
-当前仓库的决策是：
+当前仓库的默认策略是：
+
 - `ENABLE_REMOTE_SKILL_INSTALL=false`
-- 远端 skill 安装继续保持关闭
-- 只有本地 zip 包安装属于当前支持范围
+- 远端 skill 安装保持关闭
+- 当前仅支持本地 zip 包安装进入 skills registry
 
-这个决策在 runtime integration 阶段已经确认，短期内不会改成默认开启。
+这个边界在当前阶段是刻意保留的。项目的目标仍然是稳定的企业 RAG 问答系统，而不是开放式插件市场。
 
-## Why It Stays Disabled
+## Why Remote Install Stays Disabled By Default
 
-原因很直接：
-- 远端下载会把供应链风险引入本地 RAG 系统
-- 当前项目的目标是稳定的知识问答，不是通用插件市场
-- 现阶段的 skill 仍然是 prompt 级能力，不应该在生产链路里临时拉取外部包
+主要原因有三类：
 
-## Minimum Safety Bar For A Future Controlled Phase
+1. 远端下载会把供应链风险引入本地部署环境。
+2. 当前 skill 仍然是 prompt / binding 级能力，不应该在生产链路里临时拉取未知包。
+3. 远端安装一旦开放，就必须同时具备审计、回滚、版本治理和来源控制，否则风险大于收益。
 
-如果后续真的进入远端安装阶段，至少需要这些控制面：
-- 来源白名单
-- 强制 checksum 或签名校验
-- 包大小与类型限制
-- 隔离目录解压
-- 审计日志
-- 回滚与版本固定
+## Safety Bar Already Added
 
-## Recommended Future Workflow
+虽然远端安装还没有真正开放，但仓库已经先补好了第一层治理要求：
 
-未来如果要做受控远端安装，推荐流程是：
+- 远端请求可以配置主机白名单：`SKILL_REMOTE_ALLOWED_HOSTS`
+- 可强制要求 checksum：`SKILL_REMOTE_REQUIRE_CHECKSUM`
+- 可强制要求签名：`SKILL_REMOTE_REQUIRE_SIGNATURE`
+- 可限制包体积：`SKILL_REMOTE_MAX_PACKAGE_MB`
+- 本地和远端安装尝试都会持久化 install task
+- skill 安装、绑定、解绑、更新都会写 audit log
+- 管理员可通过只读 API 查询 install tasks 和 audit logs
+
+当前远端安装行为是：
+
+- 功能关闭时：请求会被拒绝，但仍会落 install task 和 audit log
+- 功能开启时：请求会先过校验，再在受控位置返回 `501 not implemented`
+
+这意味着治理链路已经存在，但真正的包下载和执行仍未开启。
+
+## Recommended Controlled Workflow
 
 ```mermaid
 flowchart LR
     A["Admin requests remote install"] --> B["Validate allowlist host"]
-    B --> C["Download to quarantine"]
-    C --> D["Verify checksum and size"]
-    D --> E["Extract to quarantine"]
-    E --> F["Validate manifest and prompt files"]
-    F --> G["Move into extracted registry"]
-    G --> H["Persist install task and audit logs"]
-    H --> I["Require explicit robot binding"]
+    B --> C["Validate checksum / signature policy"]
+    C --> D["Persist install task"]
+    D --> E["Download to quarantine"]
+    E --> F["Extract and validate manifest"]
+    F --> G["Record audit log"]
+    G --> H["Require explicit robot binding"]
 ```
+
+## Operator Guidance
+
+如果未来要在受控环境里试点远端安装，建议顺序保持为：
+
+1. 明确环境是否允许远端安装。
+2. 仅配置受控主机到 allowlist。
+3. 保持 checksum 校验开启。
+4. 如果签名体系已经准备好，再开启 signature 要求。
+5. 安装后先看 install tasks 和 audit logs，再决定是否绑定到机器人。
 
 ## Related Docs
 
-- [skills-definition-and-boundary.md](./skills-definition-and-boundary.md)
-- [skills-architecture.md](./skills-architecture.md)
-- [skills-bootstrap-slice.md](./skills-bootstrap-slice.md)
-- [skills-runtime-integration.md](./skills-runtime-integration.md)
-- [skills-marketplace-hardening-plan.md](./skills-marketplace-hardening-plan.md)
+- [skills-governance-hardening.md](./skills-governance-hardening.md)
+- [skills-versioning-and-rollback.md](./skills-versioning-and-rollback.md)
+- [skills-remote-allowlist-runbook.md](./skills-remote-allowlist-runbook.md)
+- [skills-admin-console-plan.md](./skills-admin-console-plan.md)

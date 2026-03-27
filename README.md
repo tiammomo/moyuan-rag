@@ -36,6 +36,7 @@
 - **微服务 Worker 架构**: 文档解析、切片、向量化与召回评测均通过 Kafka Worker 异步解耦处理。
 - **MiniMax 大模型接入**: 已实测支持通过 Anthropic 兼容接口接入 MiniMax 作为聊天模型，完成真实 RAG 问答。
 - **Skills Runtime 能力**: 已支持本地 skill 注册表、机器人技能绑定与排序、运行时 prompt 注入，以及聊天页和机器人页的技能展示。
+- **Skills 治理强化**: 已支持 install task 持久化、操作审计日志、远端来源白名单与 checksum / signature 安全门槛，为后续受控 marketplace 做准备。
 - **SiliconFlow 深度集成**: 针对大模型 Embedding 接口提供自动分批、指数退火重试及详细错误诊断。
 
 ---
@@ -230,6 +231,10 @@ powershell -ExecutionPolicy Bypass -File .\backend\scripts\repair-demo-unicode.p
 | `NEXT_PUBLIC_API_URL` | 前端调用的后端地址 | `http://localhost:38084` |
 | `SKILL_INSTALL_ROOT` | 本地 skills 安装根目录 | `./data/skills` |
 | `ENABLE_REMOTE_SKILL_INSTALL` | 是否允许远端 skill 安装 | `False` |
+| `SKILL_REMOTE_ALLOWED_HOSTS` | 允许远端 skill 安装的主机白名单，逗号分隔 | 空 |
+| `SKILL_REMOTE_REQUIRE_CHECKSUM` | 是否强制远端安装请求携带 checksum | `True` |
+| `SKILL_REMOTE_REQUIRE_SIGNATURE` | 是否强制远端安装请求携带签名 | `False` |
+| `SKILL_REMOTE_MAX_PACKAGE_MB` | 允许的远端 skill 包最大体积 | `20` |
 
 ---
 
@@ -306,9 +311,12 @@ powershell -ExecutionPolicy Bypass -File .\backend\scripts\local-integration.ps1
 - [docs/skills-definition-and-boundary.md](docs/skills-definition-and-boundary.md)
 - [docs/skills-architecture.md](docs/skills-architecture.md)
 - [docs/skills-remote-install-security.md](docs/skills-remote-install-security.md)
+- [docs/skills-governance-hardening.md](docs/skills-governance-hardening.md)
+- [docs/skills-versioning-and-rollback.md](docs/skills-versioning-and-rollback.md)
+- [docs/skills-remote-allowlist-runbook.md](docs/skills-remote-allowlist-runbook.md)
 - [docs/skills-bootstrap-slice.md](docs/skills-bootstrap-slice.md)
 - [docs/skills-runtime-integration.md](docs/skills-runtime-integration.md)
-- [docs/skills-marketplace-hardening-plan.md](docs/skills-marketplace-hardening-plan.md)
+- [docs/skills-admin-console-plan.md](docs/skills-admin-console-plan.md)
 
 ## RAG 教学文档
 
