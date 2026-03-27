@@ -241,6 +241,25 @@ powershell -ExecutionPolicy Bypass -File .\backend\scripts\local-integration.ps1
 
 ---
 
+## 📚 文档导航
+
+- [docs/README.md](docs/README.md)
+- [docs/rag-workflow-hybrid-retrieval.md](docs/rag-workflow-hybrid-retrieval.md)
+
+## RAG 教学文档
+
+建议按顺序阅读：
+
+- [docs/teaching/README.md](docs/teaching/README.md)
+- [docs/teaching/01-rag-overview.md](docs/teaching/01-rag-overview.md)
+- [docs/teaching/02-document-ingestion-workflow.md](docs/teaching/02-document-ingestion-workflow.md)
+- [docs/teaching/03-hybrid-retrieval.md](docs/teaching/03-hybrid-retrieval.md)
+- [docs/teaching/04-answer-generation.md](docs/teaching/04-answer-generation.md)
+- [docs/teaching/05-system-components.md](docs/teaching/05-system-components.md)
+- [docs/teaching/06-debug-and-validation.md](docs/teaching/06-debug-and-validation.md)
+
+---
+
 ## 对外投递与面试材料
 
 - [docs/external-delivery-kit.md](docs/external-delivery-kit.md)
