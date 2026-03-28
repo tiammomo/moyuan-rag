@@ -65,3 +65,5 @@ For each new rollout:
 - [skills-validation-automation.md](./skills-validation-automation.md)
 - [skills-incident-review.md](./skills-incident-review.md)
 - [skills-validation-regression.md](./skills-validation-regression.md)
+- [skills-validation-ops.md](./skills-validation-ops.md)
+- [ops/skills-validation/README.md](./ops/skills-validation/README.md)

@@ -1,0 +1,53 @@
+{
+  "install_task_id": 42,
+  "skill_slug": "rag-citation-guide",
+  "skill_version": "0.1.0",
+  "task_status": "installed",
+  "source_type": "local",
+  "requested_by": "admin",
+  "host": "local-package",
+  "checksum": {
+    "expected": null,
+    "actual": null,
+    "verified": null
+  },
+  "signature": {
+    "algorithm": null,
+    "present": null,
+    "verified": null
+  },
+  "registry_path": "data/skills/extracted/rag-citation-guide/0.1.0",
+  "robot_bindings": [
+    {
+      "robot_id": 3,
+      "robot_name": "README Demo Robot",
+      "skill_version": "0.1.0",
+      "status": "active",
+      "priority": 10,
+      "provenance_install_task_id": 42
+    }
+  ],
+  "recent_audit_events": [
+    {
+      "id": 501,
+      "action": "skill.install_local",
+      "status": "success",
+      "actor_username": "admin",
+      "created_at": "2026-03-28T10:00:00+08:00"
+    },
+    {
+      "id": 502,
+      "action": "skill.update_binding",
+      "status": "success",
+      "actor_username": "admin",
+      "created_at": "2026-03-28T10:05:00+08:00"
+    }
+  ],
+  "release_review_checklist": [
+    "Confirm install task #42 completed with the expected verification result.",
+    "Confirm the intended robot binding carries provenance task #42 before rollout approval.",
+    "Run retrieval, response-shape, and boundary prompts in /chat and compare the result with the installed prompts.",
+    "Record the final rollout verdict and attach the exported markdown or JSON artifact to the release review or incident note."
+  ],
+  "recommended_chat_check": "Open /chat, pick the target robot, and confirm active skill badges still point to install task #42."
+}

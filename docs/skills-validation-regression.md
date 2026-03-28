@@ -36,3 +36,4 @@ Use this routing:
 - [skills-validation-history.md](./skills-validation-history.md)
 - [skills-validation-evidence.md](./skills-validation-evidence.md)
 - [skills-validation-automation.md](./skills-validation-automation.md)
+- [skills-validation-ops.md](./skills-validation-ops.md)

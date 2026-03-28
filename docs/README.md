@@ -54,12 +54,14 @@
 - [skills-validation-automation.md](./skills-validation-automation.md)
 - [skills-validation-history.md](./skills-validation-history.md)
 - [skills-validation-regression.md](./skills-validation-regression.md)
+- [skills-validation-ops.md](./skills-validation-ops.md)
+- [ops/skills-validation/README.md](./ops/skills-validation/README.md)
 
 当前已经支持受控远端 skill 下载、checksum 校验、可选 Ed25519 签名校验，以及 `/admin/skills` 中的远端安装表单、单任务详情、retry / cancel、安装后交接引导和 provenance 追踪。
 
 ## 当前活动规划
 
-- [skills-validation-ops-plan.md](./skills-validation-ops-plan.md)
+- [frontend-typecheck-stability-plan.md](./frontend-typecheck-stability-plan.md)
 - [outreach-assets-plan.md](./outreach-assets-plan.md)
 - [teaching-examples-plan.md](./teaching-examples-plan.md)
 

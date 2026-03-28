@@ -336,7 +336,9 @@ python backend/scripts/local_integration.py --start-infra
 - [docs/skills-validation-automation.md](docs/skills-validation-automation.md)
 - [docs/skills-validation-history.md](docs/skills-validation-history.md)
 - [docs/skills-validation-regression.md](docs/skills-validation-regression.md)
-- [docs/skills-validation-ops-plan.md](docs/skills-validation-ops-plan.md)
+- [docs/skills-validation-ops.md](docs/skills-validation-ops.md)
+- [docs/ops/skills-validation/README.md](docs/ops/skills-validation/README.md)
+- [docs/frontend-typecheck-stability-plan.md](docs/frontend-typecheck-stability-plan.md)
 
 ## RAG 教学文档
 
