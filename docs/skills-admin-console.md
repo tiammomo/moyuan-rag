@@ -18,6 +18,7 @@ Completed outcomes:
 - Successful install task drawers now include copy-friendly validation summary and evidence template blocks for review handoff.
 - Successful install task drawers now include Markdown / JSON export actions and a release-review checklist.
 - Successful install task drawers now include recommended history archive paths and a short historical comparison hint.
+- Successful install task drawers now include a regression review template for comparing the current rollout against the previous validation artifact pair.
 - Robot edit entry points can now carry install provenance forward, and provenance-linked binding actions will appear in the same task timeline.
 - Installed skill variants are compared side by side with the current registry version and pinned robot bindings.
 - Operators can rebind drifted robot bindings back to the current skill version from the console.
@@ -36,6 +37,7 @@ The admin console now includes:
 - Markdown / JSON export actions for validation artifacts
 - release-review checklist guidance inside the install task drawer
 - history archive path hints for exported validation artifacts
+- regression review template and release gating hint
 - related audit events inside the install task drawer
 - provenance-preserving jump paths from install handoff into robot editing
 - audit log filters and audit detail drawer
@@ -79,3 +81,4 @@ This slice was validated with:
 - [skills-validation-evidence.md](./skills-validation-evidence.md)
 - [skills-validation-automation.md](./skills-validation-automation.md)
 - [skills-validation-history.md](./skills-validation-history.md)
+- [skills-validation-regression.md](./skills-validation-regression.md)

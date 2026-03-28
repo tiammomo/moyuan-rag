@@ -36,3 +36,4 @@ Use JSON export when:
 - [skills-validation-playbook.md](./skills-validation-playbook.md)
 - [skills-incident-review.md](./skills-incident-review.md)
 - [skills-validation-history.md](./skills-validation-history.md)
+- [skills-validation-regression.md](./skills-validation-regression.md)

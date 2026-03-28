@@ -582,6 +582,55 @@ export default function AdminSkillsPage() {
   const selectedTaskHistoryDir = 'docs/ops/skills-validation';
   const selectedTaskHistoryMarkdownPath = `${selectedTaskHistoryDir}/${selectedTaskHistoryBaseName}.md`;
   const selectedTaskHistoryJsonPath = `${selectedTaskHistoryDir}/${selectedTaskHistoryBaseName}.json`;
+  const selectedTaskPreviousHistoryMarkdownPath = useMemo(() => {
+    if (!selectedTask) {
+      return `${selectedTaskHistoryDir}/<previous-date>-task-<previous-id>-unknown-skill.md`;
+    }
+
+    const slugSegment = toHistorySlugSegment(selectedTask.installed_skill_slug);
+    return `${selectedTaskHistoryDir}/<previous-date>-task-<previous-id>-${slugSegment}.md`;
+  }, [selectedTask]);
+  const selectedTaskPreviousHistoryJsonPath = useMemo(() => {
+    if (!selectedTask) {
+      return `${selectedTaskHistoryDir}/<previous-date>-task-<previous-id>-unknown-skill.json`;
+    }
+
+    const slugSegment = toHistorySlugSegment(selectedTask.installed_skill_slug);
+    return `${selectedTaskHistoryDir}/<previous-date>-task-<previous-id>-${slugSegment}.json`;
+  }, [selectedTask]);
+  const selectedTaskRegressionReviewTemplate = useMemo(() => {
+    if (!selectedTask) {
+      return '';
+    }
+
+    return [
+      '# Skills Regression Review',
+      '',
+      '## Artifacts',
+      `- current_markdown: ${selectedTaskHistoryMarkdownPath}`,
+      `- current_json: ${selectedTaskHistoryJsonPath}`,
+      `- previous_markdown: ${selectedTaskPreviousHistoryMarkdownPath}`,
+      `- previous_json: ${selectedTaskPreviousHistoryJsonPath}`,
+      '',
+      '## Compare',
+      '- install_metadata_change:',
+      '- robot_binding_change:',
+      '- audit_timeline_change:',
+      '- runtime_validation_change:',
+      '',
+      '## Decision',
+      '- regression_status: pending',
+      '- release_approval: pending',
+      '- rollback_recommended: no',
+      '- follow_up_action:',
+    ].join('\n');
+  }, [
+    selectedTask,
+    selectedTaskHistoryJsonPath,
+    selectedTaskHistoryMarkdownPath,
+    selectedTaskPreviousHistoryJsonPath,
+    selectedTaskPreviousHistoryMarkdownPath,
+  ]);
   const buildRobotEditHref = (robotId: number, skillSlug?: string) => {
     if (!selectedTaskProvenanceId || !skillSlug || skillSlug !== selectedTaskSkillSlug) {
       return `/robots/${robotId}/edit-test`;
@@ -1712,6 +1761,53 @@ export default function AdminSkillsPage() {
                     <span>如果是版本回归，优先对照历史导出里的 recent audit events、chat summary 和 answer excerpt_or_screenshot。</span>
                   </div>
                 </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
+                <div>
+                  <CardTitle className="text-base">回归复核模板</CardTitle>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    对照当前导出和上一份同 skill 验证记录，明确这次发布是预期变化、无变化，还是需要回滚的回归。
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => void copyTextToClipboard(selectedTaskRegressionReviewTemplate, '回归复核模板')}
+                  disabled={!selectedTaskRegressionReviewTemplate}
+                >
+                  <Copy className="mr-2 h-4 w-4" />
+                  复制回归模板
+                </Button>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+                  <div className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-4 text-sm text-gray-700 dark:border-gray-700 dark:bg-gray-900/40 dark:text-gray-300">
+                    <p className="font-medium text-gray-900 dark:text-white">当前记录</p>
+                    <p className="mt-2 break-all font-mono text-xs leading-6">{selectedTaskHistoryMarkdownPath}</p>
+                    <p className="mt-2 break-all font-mono text-xs leading-6">{selectedTaskHistoryJsonPath}</p>
+                  </div>
+                  <div className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-4 text-sm text-gray-700 dark:border-gray-700 dark:bg-gray-900/40 dark:text-gray-300">
+                    <p className="font-medium text-gray-900 dark:text-white">建议对照的上一份记录</p>
+                    <p className="mt-2 break-all font-mono text-xs leading-6">{selectedTaskPreviousHistoryMarkdownPath}</p>
+                    <p className="mt-2 break-all font-mono text-xs leading-6">{selectedTaskPreviousHistoryJsonPath}</p>
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  <div className="flex items-start gap-3 rounded-2xl border border-gray-200 px-4 py-3 text-sm leading-6 text-gray-700 dark:border-gray-700 dark:text-gray-300">
+                    <GitCompare className="mt-0.5 h-4 w-4 flex-none text-primary-600 dark:text-primary-400" />
+                    <span>先比 install metadata 和 robot bindings，再比 chat summary 与 final verdict，避免只看答案表象。</span>
+                  </div>
+                  <div className="flex items-start gap-3 rounded-2xl border border-gray-200 px-4 py-3 text-sm leading-6 text-gray-700 dark:border-gray-700 dark:text-gray-300">
+                    <Siren className="mt-0.5 h-4 w-4 flex-none text-primary-600 dark:text-primary-400" />
+                    <span>如果 regression review 判定为非预期变化，发布评审应先转入 follow-up 或 rollback，而不是直接放行。</span>
+                  </div>
+                </div>
+                <pre className="max-h-[320px] overflow-auto rounded-2xl bg-gray-950 px-4 py-4 text-xs leading-6 text-gray-100">
+                  {selectedTaskRegressionReviewTemplate}
+                </pre>
               </CardContent>
             </Card>
 

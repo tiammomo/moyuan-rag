@@ -64,3 +64,4 @@ For each new rollout:
 - [skills-validation-evidence.md](./skills-validation-evidence.md)
 - [skills-validation-automation.md](./skills-validation-automation.md)
 - [skills-incident-review.md](./skills-incident-review.md)
+- [skills-validation-regression.md](./skills-validation-regression.md)
