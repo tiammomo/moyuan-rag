@@ -44,6 +44,8 @@
 - [skills-runtime-integration.md](./skills-runtime-integration.md)
 - [skills-admin-console.md](./skills-admin-console.md)
 
+当前已经支持在 `/admin/skills` 查看单个安装任务详情，并对符合条件的远端安装任务执行 retry / cancel。
+
 ## 当前活动规划
 
 - [skills-remote-install-execution-plan.md](./skills-remote-install-execution-plan.md)

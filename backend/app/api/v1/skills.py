@@ -13,6 +13,8 @@ from app.models.user import User
 from app.schemas.skill import (
     SkillAuditLogListResponse,
     SkillInstallResponse,
+    SkillInstallTaskActionResponse,
+    SkillInstallTaskInfo,
     SkillInstallTaskListResponse,
     SkillListResponse,
     SkillRemoteInstallRequest,
@@ -79,6 +81,42 @@ async def list_install_tasks(
         skill_slug=skill_slug,
         requested_by_username=requested_by_username,
     )
+
+
+@router.get("/install-tasks/{task_id}", response_model=SkillInstallTaskInfo, summary="Get a skill install task")
+async def get_install_task(
+    task_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    _ = current_user
+    return await skill_service.get_install_task(db, task_id)
+
+
+@router.post(
+    "/install-tasks/{task_id}/retry",
+    response_model=SkillInstallTaskActionResponse,
+    summary="Retry a remote skill install task",
+)
+async def retry_install_task(
+    task_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    return await skill_service.retry_install_task(db, task_id, current_user)
+
+
+@router.post(
+    "/install-tasks/{task_id}/cancel",
+    response_model=SkillInstallTaskActionResponse,
+    summary="Cancel a remote skill install task",
+)
+async def cancel_install_task(
+    task_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    return await skill_service.cancel_install_task(db, task_id, current_user)
 
 
 @router.get("/audit-logs", response_model=SkillAuditLogListResponse, summary="List skill audit logs")

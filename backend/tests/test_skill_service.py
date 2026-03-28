@@ -1,6 +1,7 @@
 import io
 import json
 import zipfile
+from datetime import datetime, timezone
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -41,6 +42,14 @@ class FakeCountResult:
         return self._value
 
 
+class FakeScalarResult:
+    def __init__(self, value):
+        self._value = value
+
+    def scalar_one_or_none(self):
+        return self._value
+
+
 class FakeSession:
     def __init__(self, results=None):
         self._results = list(results or [])
@@ -64,6 +73,11 @@ class FakeSession:
         self.commits += 1
 
     async def refresh(self, _obj):
+        now = datetime.now(timezone.utc)
+        if getattr(_obj, "created_at", None) is None:
+            _obj.created_at = now
+        if getattr(_obj, "updated_at", None) is None:
+            _obj.updated_at = now
         return None
 
     async def rollback(self):
@@ -279,6 +293,111 @@ async def test_get_skill_detail_includes_installed_variants(tmp_path: Path):
     assert current_variant.bound_robot_count == 1
     assert old_variant.is_current is False
     assert old_variant.bound_robot_ids == [2]
+
+
+@pytest.mark.asyncio
+async def test_get_install_task_returns_task_info():
+    task = SimpleNamespace(
+        id=7,
+        source_type="remote",
+        package_name=None,
+        package_url="https://example.com/demo.zip",
+        package_checksum="abc123",
+        package_signature=None,
+        signature_algorithm=None,
+        requested_by_user_id=1,
+        requested_by_username="admin",
+        status="rejected",
+        installed_skill_slug=None,
+        installed_skill_version=None,
+        error_message="Remote install is disabled.",
+        details={"host": "example.com"},
+        created_at="2026-03-28T11:00:00+08:00",
+        updated_at="2026-03-28T11:00:01+08:00",
+        finished_at="2026-03-28T11:00:01+08:00",
+    )
+    db = FakeSession(results=[FakeScalarResult(task)])
+
+    response = await skill_service.get_install_task(db, 7)
+
+    assert response.id == 7
+    assert response.package_url == "https://example.com/demo.zip"
+    assert response.status == "rejected"
+
+
+@pytest.mark.asyncio
+async def test_retry_install_task_creates_new_attempt_when_remote_install_is_disabled():
+    original_flag = settings.ENABLE_REMOTE_SKILL_INSTALL
+    settings.ENABLE_REMOTE_SKILL_INSTALL = False
+    task = SimpleNamespace(
+        id=8,
+        source_type="remote",
+        package_name=None,
+        package_url="https://example.com/demo.zip",
+        package_checksum="abc123",
+        package_signature=None,
+        signature_algorithm=None,
+        requested_by_user_id=1,
+        requested_by_username="admin",
+        status="rejected",
+        installed_skill_slug=None,
+        installed_skill_version=None,
+        error_message="Remote install is disabled.",
+        details={},
+        created_at="2026-03-28T11:00:00+08:00",
+        updated_at="2026-03-28T11:00:01+08:00",
+        finished_at="2026-03-28T11:00:01+08:00",
+    )
+    try:
+        db = FakeSession(results=[FakeScalarResult(task)])
+        response = await skill_service.retry_install_task(
+            db,
+            task_id=8,
+            current_user=SimpleNamespace(id=1, username="admin", role="admin"),
+        )
+    finally:
+        settings.ENABLE_REMOTE_SKILL_INSTALL = original_flag
+
+    assert response.task.status == "rejected"
+    assert response.task.details["retry_of_task_id"] == 8
+    assert task.details["latest_retry_task_id"] == response.task.id
+    assert any(isinstance(item, SkillInstallTask) and item.id == response.task.id for item in db.added)
+    assert any(isinstance(item, SkillAuditLog) and item.action == "skill.retry_install" for item in db.added)
+
+
+@pytest.mark.asyncio
+async def test_cancel_install_task_marks_pending_remote_task_as_cancelled():
+    task = SimpleNamespace(
+        id=9,
+        source_type="remote",
+        package_name=None,
+        package_url="https://example.com/demo.zip",
+        package_checksum="abc123",
+        package_signature=None,
+        signature_algorithm=None,
+        requested_by_user_id=1,
+        requested_by_username="admin",
+        status="pending",
+        installed_skill_slug=None,
+        installed_skill_version=None,
+        error_message=None,
+        details={},
+        created_at="2026-03-28T11:00:00+08:00",
+        updated_at="2026-03-28T11:00:00+08:00",
+        finished_at=None,
+    )
+    db = FakeSession(results=[FakeScalarResult(task)])
+
+    response = await skill_service.cancel_install_task(
+        db,
+        task_id=9,
+        current_user=SimpleNamespace(id=1, username="admin", role="admin"),
+    )
+
+    assert response.task.status == "cancelled"
+    assert response.task.error_message == "Install task was cancelled by an operator."
+    assert task.details["cancelled_by"] == "admin"
+    assert any(isinstance(item, SkillAuditLog) and item.action == "skill.cancel_install" for item in db.added)
 
 
 @pytest.mark.asyncio

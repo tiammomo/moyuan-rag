@@ -102,6 +102,11 @@ export interface SkillInstallTaskListResponse {
   items: SkillInstallTask[];
 }
 
+export interface SkillInstallTaskActionResponse {
+  message: string;
+  task: SkillInstallTask;
+}
+
 export interface SkillAuditLog {
   id: number;
   action: string;

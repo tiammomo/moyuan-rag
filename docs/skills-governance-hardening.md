@@ -28,6 +28,9 @@ These tables allow operators to answer:
 
 Admin-only endpoints:
 - `GET /api/v1/skills/install-tasks`
+- `GET /api/v1/skills/install-tasks/{task_id}`
+- `POST /api/v1/skills/install-tasks/{task_id}/retry`
+- `POST /api/v1/skills/install-tasks/{task_id}/cancel`
 - `GET /api/v1/skills/audit-logs`
 
 Existing install endpoints now also write governance data:
@@ -40,7 +43,8 @@ Remote install is still disabled by default.
 
 Current behavior:
 - feature flag disabled: request is rejected and still recorded
-- feature flag enabled: request enters validation, then stops at a controlled `501 not implemented`
+- feature flag enabled: request enters validation, persists verification markers, then stops at a controlled `501 not implemented`
+- operator console: admins can inspect a single task and trigger retry / cancel only when the current task status is safe
 
 This keeps the governance trail in place without enabling unsafe package ingestion yet.
 

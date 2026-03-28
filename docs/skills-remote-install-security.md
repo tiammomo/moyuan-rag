@@ -33,7 +33,8 @@
 当前远端安装行为是：
 
 - 功能关闭时：请求会被拒绝，但仍会落 install task 和 audit log
-- 功能开启时：请求会先过校验，再在受控位置返回 `501 not implemented`
+- 功能开启时：请求会先过校验、写入 verification 元信息，再在受控位置返回 `501 not implemented`
+- 管理员可以在 `/admin/skills` 查看单个 install task 的详情，并对允许的远端任务执行 retry / cancel
 
 这意味着治理链路已经存在，但真正的包下载和执行仍未开启。
 
@@ -65,4 +66,5 @@ flowchart LR
 - [skills-governance-hardening.md](./skills-governance-hardening.md)
 - [skills-versioning-and-rollback.md](./skills-versioning-and-rollback.md)
 - [skills-remote-allowlist-runbook.md](./skills-remote-allowlist-runbook.md)
-- [skills-admin-console-plan.md](./skills-admin-console-plan.md)
+- [skills-admin-console.md](./skills-admin-console.md)
+- [skills-remote-install-execution-plan.md](./skills-remote-install-execution-plan.md)

@@ -130,6 +130,11 @@ class SkillInstallTaskListResponse(BaseModel):
     items: List[SkillInstallTaskInfo]
 
 
+class SkillInstallTaskActionResponse(BaseModel):
+    message: str
+    task: SkillInstallTaskInfo
+
+
 class SkillAuditLogEntry(BaseModel):
     id: int
     action: str

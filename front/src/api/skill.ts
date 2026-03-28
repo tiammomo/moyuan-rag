@@ -6,6 +6,8 @@ import type {
   SkillBindingUpdate,
   SkillDetail,
   SkillInstallResponse,
+  SkillInstallTask,
+  SkillInstallTaskActionResponse,
   SkillInstallTaskListResponse,
   SkillListResponse,
 } from '@/types';
@@ -41,6 +43,21 @@ export const skillApi = {
     requested_by_username?: string;
   }): Promise<SkillInstallTaskListResponse> => {
     const response = await apiClient.get<SkillInstallTaskListResponse>('/skills/install-tasks', { params });
+    return response.data;
+  },
+
+  getInstallTaskById: async (taskId: number): Promise<SkillInstallTask> => {
+    const response = await apiClient.get<SkillInstallTask>(`/skills/install-tasks/${taskId}`);
+    return response.data;
+  },
+
+  retryInstallTask: async (taskId: number): Promise<SkillInstallTaskActionResponse> => {
+    const response = await apiClient.post<SkillInstallTaskActionResponse>(`/skills/install-tasks/${taskId}/retry`);
+    return response.data;
+  },
+
+  cancelInstallTask: async (taskId: number): Promise<SkillInstallTaskActionResponse> => {
+    const response = await apiClient.post<SkillInstallTaskActionResponse>(`/skills/install-tasks/${taskId}/cancel`);
     return response.data;
   },
 

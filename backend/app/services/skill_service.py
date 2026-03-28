@@ -36,6 +36,7 @@ from app.schemas.skill import (
     SkillBindingUpdate,
     SkillDetail,
     SkillInstallResponse,
+    SkillInstallTaskActionResponse,
     SkillInstalledVariantInfo,
     SkillInstallTaskInfo,
     SkillInstallTaskListResponse,
@@ -50,6 +51,9 @@ logger = logging.getLogger(__name__)
 
 class SkillService:
     """Provides local registry, install, and robot binding operations."""
+
+    REMOTE_RETRYABLE_STATUSES = {"failed", "rejected", "cancelled"}
+    REMOTE_CANCELLABLE_STATUSES = {"pending", "queued", "verifying", "downloading"}
 
     @property
     def install_root(self) -> Path:
@@ -503,6 +507,17 @@ class SkillService:
         items = [SkillInstallTaskInfo.model_validate(item) for item in result.scalars().all()]
         return SkillInstallTaskListResponse(total=total_result.scalar_one(), items=items)
 
+    async def _get_install_task_record(self, db: AsyncSession, task_id: int) -> SkillInstallTask:
+        result = await db.execute(select(SkillInstallTask).where(SkillInstallTask.id == task_id))
+        task = result.scalar_one_or_none()
+        if task is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Skill install task not found")
+        return task
+
+    async def get_install_task(self, db: AsyncSession, task_id: int) -> SkillInstallTaskInfo:
+        task = await self._get_install_task_record(db, task_id)
+        return SkillInstallTaskInfo.model_validate(task)
+
     async def list_audit_logs(
         self,
         db: AsyncSession,
@@ -653,6 +668,117 @@ class SkillService:
         finally:
             shutil.rmtree(quarantine_root, ignore_errors=True)
 
+    async def _process_remote_install_task(
+        self,
+        db: AsyncSession,
+        *,
+        install_task: SkillInstallTask | None,
+        package_url: str,
+        checksum: str | None,
+        signature: str | None,
+        signature_algorithm: str | None,
+        current_user: User,
+        audit_action: str,
+        raise_on_terminal_error: bool,
+    ) -> SkillInstallTask | None:
+        if not settings.ENABLE_REMOTE_SKILL_INSTALL:
+            await self._update_install_task(
+                db,
+                install_task,
+                status_value="rejected",
+                error_message="Remote skill install is disabled.",
+                finished=True,
+            )
+            await self._record_audit_log(
+                db,
+                action=audit_action,
+                target_type="skill_install",
+                status_value="rejected",
+                current_user=current_user,
+                message="Remote skill install is disabled.",
+                install_task_id=getattr(install_task, "id", None),
+                details={"package_url": package_url},
+            )
+            if raise_on_terminal_error:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Remote skill install is disabled. Enable ENABLE_REMOTE_SKILL_INSTALL to use this endpoint.",
+                )
+            return install_task
+
+        try:
+            host = self._validate_remote_install_request(package_url, checksum, signature)
+        except Exception as exc:
+            status_value = "rejected" if isinstance(exc, HTTPException) else "failed"
+            await self._update_install_task(
+                db,
+                install_task,
+                status_value=status_value,
+                error_message=self._error_message(exc),
+                details={"package_url": package_url},
+                finished=True,
+            )
+            await self._record_audit_log(
+                db,
+                action=audit_action,
+                target_type="skill_install",
+                status_value=status_value,
+                current_user=current_user,
+                message=self._error_message(exc),
+                install_task_id=getattr(install_task, "id", None),
+                details={
+                    "package_url": package_url,
+                    "checksum": checksum,
+                    "signature_algorithm": signature_algorithm,
+                },
+            )
+            if raise_on_terminal_error:
+                raise
+            return install_task
+
+        await self._update_install_task(
+            db,
+            install_task,
+            status_value="verifying",
+            details={
+                "host": host,
+                "verification": {
+                    "checksum_present": bool(checksum),
+                    "signature_present": bool(signature),
+                    "signature_algorithm": signature_algorithm,
+                },
+            },
+        )
+        await self._update_install_task(
+            db,
+            install_task,
+            status_value="failed",
+            error_message="Remote skill install is not implemented in the current controlled phase.",
+            details={"host": host, "verified": True},
+            finished=True,
+        )
+        await self._record_audit_log(
+            db,
+            action=audit_action,
+            target_type="skill_install",
+            status_value="failed",
+            current_user=current_user,
+            message="Remote skill install is not implemented in the current controlled phase.",
+            install_task_id=getattr(install_task, "id", None),
+            details={
+                "package_url": package_url,
+                "checksum": checksum,
+                "host": host,
+                "signature_algorithm": signature_algorithm,
+            },
+        )
+        if raise_on_terminal_error:
+            raise HTTPException(
+                status_code=status.HTTP_501_NOT_IMPLEMENTED,
+                detail="Remote skill install is not implemented in the current controlled phase.",
+            )
+        return install_task
+
     async def install_remote_skill(
         self,
         db: AsyncSession,
@@ -673,62 +799,110 @@ class SkillService:
             signature_algorithm=signature_algorithm,
             current_user=current_user,
         )
-        if not settings.ENABLE_REMOTE_SKILL_INSTALL:
-            await self._update_install_task(
-                db,
-                install_task,
-                status_value="rejected",
-                error_message="Remote skill install is disabled.",
-                finished=True,
-            )
-            await self._record_audit_log(
-                db,
-                action="skill.install_remote",
-                target_type="skill_install",
-                status_value="rejected",
-                current_user=current_user,
-                message="Remote skill install is disabled.",
-                install_task_id=getattr(install_task, "id", None),
-                details={"package_url": package_url},
-            )
+        return await self._process_remote_install_task(
+            db,
+            install_task=install_task,
+            package_url=package_url,
+            checksum=checksum,
+            signature=signature,
+            signature_algorithm=signature_algorithm,
+            current_user=current_user,
+            audit_action="skill.install_remote",
+            raise_on_terminal_error=True,
+        )
+
+    async def retry_install_task(
+        self,
+        db: AsyncSession,
+        task_id: int,
+        current_user: User,
+    ) -> SkillInstallTaskActionResponse:
+        task = await self._get_install_task_record(db, task_id)
+        if task.source_type != "remote":
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only remote install tasks can be retried")
+        if task.status not in self.REMOTE_RETRYABLE_STATUSES:
             raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Remote skill install is disabled. Enable ENABLE_REMOTE_SKILL_INSTALL to use this endpoint.",
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Task status {task.status} cannot be retried safely.",
+            )
+        if not task.package_url:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Task is missing package_url and cannot be retried",
             )
 
-        host = self._validate_remote_install_request(package_url, checksum, signature)
-        await self._update_install_task(
+        retry_task = await self._create_install_task(
             db,
-            install_task,
-            status_value="verifying",
-            details={"host": host},
+            source_type=task.source_type,
+            package_name=task.package_name,
+            package_url=task.package_url,
+            package_checksum=task.package_checksum,
+            package_signature=task.package_signature,
+            signature_algorithm=task.signature_algorithm,
+            current_user=current_user,
+            details={"retry_of_task_id": task.id},
         )
         await self._update_install_task(
             db,
-            install_task,
-            status_value="failed",
-            error_message="Remote skill install is not implemented in the current controlled phase.",
-            details={"host": host},
+            task,
+            status_value=task.status,
+            details={"latest_retry_task_id": getattr(retry_task, "id", None)},
+        )
+        retry_task = await self._process_remote_install_task(
+            db,
+            install_task=retry_task,
+            package_url=task.package_url,
+            checksum=task.package_checksum,
+            signature=task.package_signature,
+            signature_algorithm=task.signature_algorithm,
+            current_user=current_user,
+            audit_action="skill.retry_install",
+            raise_on_terminal_error=False,
+        )
+        assert retry_task is not None
+        return SkillInstallTaskActionResponse(
+            message=f"Retry created for install task #{task.id}. Current retry status: {retry_task.status}.",
+            task=SkillInstallTaskInfo.model_validate(retry_task),
+        )
+
+    async def cancel_install_task(
+        self,
+        db: AsyncSession,
+        task_id: int,
+        current_user: User,
+    ) -> SkillInstallTaskActionResponse:
+        task = await self._get_install_task_record(db, task_id)
+        if task.source_type != "remote":
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only remote install tasks can be cancelled")
+        if task.status not in self.REMOTE_CANCELLABLE_STATUSES:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Task status {task.status} cannot be cancelled.",
+            )
+        previous_status = task.status
+
+        task = await self._update_install_task(
+            db,
+            task,
+            status_value="cancelled",
+            error_message="Install task was cancelled by an operator.",
+            details={"cancelled_by": getattr(current_user, "username", None)},
             finished=True,
         )
         await self._record_audit_log(
             db,
-            action="skill.install_remote",
+            action="skill.cancel_install",
             target_type="skill_install",
-            status_value="failed",
+            status_value="success",
             current_user=current_user,
-            message="Remote skill install is not implemented in the current controlled phase.",
-            install_task_id=getattr(install_task, "id", None),
-            details={
-                "package_url": package_url,
-                "checksum": checksum,
-                "host": host,
-                "signature_algorithm": signature_algorithm,
-            },
+            message="Install task cancelled by operator.",
+            install_task_id=getattr(task, "id", None),
+            details={"status_before_cancel": previous_status},
         )
-        raise HTTPException(
-            status_code=status.HTTP_501_NOT_IMPLEMENTED,
-            detail="Remote skill install is not implemented in the current controlled phase.",
+        assert task is not None
+        return SkillInstallTaskActionResponse(
+            message=f"Install task #{task.id} cancelled.",
+            task=SkillInstallTaskInfo.model_validate(task),
         )
 
     async def get_robot_bindings(

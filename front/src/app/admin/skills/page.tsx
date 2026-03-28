@@ -76,6 +76,9 @@ const auditStatusOptions = [
   { value: 'rejected', label: 'rejected' },
 ];
 
+const retryableTaskStatuses = new Set(['failed', 'rejected', 'cancelled']);
+const cancellableTaskStatuses = new Set(['pending', 'queued', 'verifying', 'downloading']);
+
 function formatJson(value: unknown) {
   return JSON.stringify(value ?? {}, null, 2);
 }
@@ -286,6 +289,15 @@ export default function AdminSkillsPage() {
     }
   };
 
+  const loadInstallTaskDetail = async (taskId: number) => {
+    try {
+      const task = await skillApi.getInstallTaskById(taskId);
+      setSelectedTask(task);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : '加载安装任务详情失败');
+    }
+  };
+
   useEffect(() => {
     if (user?.role === 'admin') {
       void loadConsole(true);
@@ -318,6 +330,9 @@ export default function AdminSkillsPage() {
     await loadConsole(false);
     if (selectedSkillSlug) {
       await loadSkillDetail(selectedSkillSlug);
+    }
+    if (selectedTask) {
+      await loadInstallTaskDetail(selectedTask.id);
     }
   };
 
@@ -357,6 +372,34 @@ export default function AdminSkillsPage() {
       await refreshAll();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : '批量回绑失败');
+    } finally {
+      setOperationKey(null);
+    }
+  };
+
+  const handleRetryTask = async (taskId: number) => {
+    setOperationKey(`task-retry-${taskId}`);
+    try {
+      const response = await skillApi.retryInstallTask(taskId);
+      toast.success(response.message);
+      setSelectedTask(response.task);
+      await loadConsole(false);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : '重试远端安装失败');
+    } finally {
+      setOperationKey(null);
+    }
+  };
+
+  const handleCancelTask = async (taskId: number) => {
+    setOperationKey(`task-cancel-${taskId}`);
+    try {
+      const response = await skillApi.cancelInstallTask(taskId);
+      toast.success(response.message);
+      setSelectedTask(response.task);
+      await loadConsole(false);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : '取消远端安装失败');
     } finally {
       setOperationKey(null);
     }
@@ -519,7 +562,7 @@ export default function AdminSkillsPage() {
                         </p>
                       ) : null}
                     </div>
-                    <Button variant="outline" size="sm" onClick={() => setSelectedTask(task)}>
+                    <Button variant="outline" size="sm" onClick={() => void loadInstallTaskDetail(task.id)}>
                       查看详情
                       <ChevronRight className="ml-2 h-4 w-4" />
                     </Button>
@@ -845,6 +888,31 @@ export default function AdminSkillsPage() {
                 {selectedTask.error_message}
               </div>
             ) : null}
+
+            <div className="flex flex-wrap justify-end gap-2">
+              {selectedTask.source_type === 'remote' && retryableTaskStatuses.has(selectedTask.status) ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => void handleRetryTask(selectedTask.id)}
+                  loading={operationKey === `task-retry-${selectedTask.id}`}
+                >
+                  <RefreshCcw className="mr-2 h-4 w-4" />
+                  重试远端安装
+                </Button>
+              ) : null}
+              {selectedTask.source_type === 'remote' && cancellableTaskStatuses.has(selectedTask.status) ? (
+                <Button
+                  variant="warning"
+                  size="sm"
+                  onClick={() => void handleCancelTask(selectedTask.id)}
+                  loading={operationKey === `task-cancel-${selectedTask.id}`}
+                >
+                  <X className="mr-2 h-4 w-4" />
+                  取消任务
+                </Button>
+              ) : null}
+            </div>
 
             <Card>
               <CardHeader>
