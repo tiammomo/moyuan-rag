@@ -12,6 +12,8 @@ Relevant backend settings:
 - `SKILL_REMOTE_REQUIRE_CHECKSUM`
 - `SKILL_REMOTE_REQUIRE_SIGNATURE`
 - `SKILL_REMOTE_MAX_PACKAGE_MB`
+- `SKILL_REMOTE_DOWNLOAD_TIMEOUT_SECONDS`
+- `SKILL_REMOTE_ED25519_PUBLIC_KEY`
 
 ## Recommended Default
 
@@ -20,6 +22,7 @@ Keep these defaults in normal environments:
 - `SKILL_REMOTE_ALLOWED_HOSTS=` empty
 - `SKILL_REMOTE_REQUIRE_CHECKSUM=true`
 - `SKILL_REMOTE_REQUIRE_SIGNATURE=false` unless signed packages are actually available
+- `SKILL_REMOTE_ED25519_PUBLIC_KEY=` empty until a trusted signing flow exists
 
 ## Allowlist Design
 
@@ -38,10 +41,11 @@ Do not allow:
 1. Decide whether the environment is allowed to test remote skill install at all.
 2. Add one or more trusted hosts to `SKILL_REMOTE_ALLOWED_HOSTS`.
 3. Keep checksum verification enabled.
-4. Enable the feature flag only in a controlled environment.
-5. Submit the remote install request.
-6. Check `install-tasks` and `audit-logs` before any further action.
-7. Bind the skill to a robot only after operator review.
+4. If signature verification is required, configure `SKILL_REMOTE_ED25519_PUBLIC_KEY`.
+5. Enable the feature flag only in a controlled environment.
+6. Submit the remote install request.
+7. Check `install-tasks` and `audit-logs` before any further action.
+8. Bind the skill to a robot only after operator review.
 
 ## Failure Handling
 
@@ -54,6 +58,11 @@ If a request reaches validation but cannot proceed:
 - keep the failed task record
 - do not create or update robot bindings
 - do not treat package download approval as runtime approval
+
+If checksum or signature verification fails:
+- treat the task as untrusted and leave it in `rejected`
+- rotate allowlist or signing configuration before retrying
+- do not manually copy the downloaded archive into the registry
 
 ## Important Boundary
 

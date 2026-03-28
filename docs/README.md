@@ -43,12 +43,13 @@
 - [skills-bootstrap-slice.md](./skills-bootstrap-slice.md)
 - [skills-runtime-integration.md](./skills-runtime-integration.md)
 - [skills-admin-console.md](./skills-admin-console.md)
+- [skills-remote-install-execution.md](./skills-remote-install-execution.md)
 
-当前已经支持在 `/admin/skills` 查看单个安装任务详情，并对符合条件的远端安装任务执行 retry / cancel。
+当前已经支持受控远端 skill 下载、checksum 校验、可选 Ed25519 签名校验，以及 `/admin/skills` 中的单任务详情和 retry / cancel。
 
 ## 当前活动规划
 
-- [skills-remote-install-execution-plan.md](./skills-remote-install-execution-plan.md)
+- [skills-remote-install-operator-ui-plan.md](./skills-remote-install-operator-ui-plan.md)
 - [outreach-assets-plan.md](./outreach-assets-plan.md)
 - [teaching-examples-plan.md](./teaching-examples-plan.md)
 

@@ -84,6 +84,8 @@ class Settings(BaseSettings):
     SKILL_REMOTE_REQUIRE_CHECKSUM: bool = True
     SKILL_REMOTE_REQUIRE_SIGNATURE: bool = False
     SKILL_REMOTE_MAX_PACKAGE_MB: int = 20
+    SKILL_REMOTE_DOWNLOAD_TIMEOUT_SECONDS: int = 60
+    SKILL_REMOTE_ED25519_PUBLIC_KEY: str = ""
 
     EMBEDDING_MODEL_PATH: str = "./models/Qwen/Qwen3-Embedding-0___6B"
     EMBEDDING_BATCH_SIZE: int = 32

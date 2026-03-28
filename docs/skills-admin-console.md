@@ -11,6 +11,7 @@ Completed outcomes:
 - Install task details and audit log details are now visible in JSON drawers for direct troubleshooting.
 - Install task drawers can reload a single task via `GET /api/v1/skills/install-tasks/{task_id}` without refreshing the whole console.
 - Remote install tasks now expose safe operator actions for retry and cancel directly in the drawer.
+- Once `ENABLE_REMOTE_SKILL_INSTALL=true`, the drawer also shows persisted download and verification metadata for successful or rejected remote packages.
 - Installed skill variants are compared side by side with the current registry version and pinned robot bindings.
 - Operators can rebind drifted robot bindings back to the current skill version from the console.
 - Rollback remains controlled, but the console now includes a rollback preparation workflow so teams can review impact before changing registry state.
@@ -51,4 +52,4 @@ This slice was validated with:
 - [skills-governance-hardening.md](./skills-governance-hardening.md)
 - [skills-runtime-integration.md](./skills-runtime-integration.md)
 - [skills-remote-install-security.md](./skills-remote-install-security.md)
-- [skills-remote-install-execution-plan.md](./skills-remote-install-execution-plan.md)
+- [skills-remote-install-execution.md](./skills-remote-install-execution.md)

@@ -1,3 +1,5 @@
+import base64
+import hashlib
 import io
 import json
 import zipfile
@@ -5,7 +7,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from types import SimpleNamespace
 
+import httpx
 import pytest
+import respx
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from fastapi import HTTPException
 from starlette.datastructures import UploadFile
 
@@ -139,6 +145,36 @@ def _write_demo_skill(root: Path, slug: str = "demo-skill", version: str = "0.1.
     )
 
 
+def _build_skill_zip_bytes(
+    *,
+    slug: str,
+    version: str,
+    name: str,
+    category: str = "demo",
+    description: str = "Installed from a remote zip package",
+) -> bytes:
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as archive:
+        archive.writestr(
+            f"{slug}/skill.yaml",
+            "\n".join(
+                [
+                    "schema_version: 1",
+                    f"slug: {slug}",
+                    f"name: {name}",
+                    f"version: {version}",
+                    f"category: {category}",
+                    f"description: {description}",
+                    "entrypoints:",
+                    "  system_prompt: prompts/system.md",
+                ]
+            ),
+        )
+        archive.writestr(f"{slug}/SKILL.md", f"# {name}\n")
+        archive.writestr(f"{slug}/prompts/system.md", "system prompt")
+    return buf.getvalue()
+
+
 @pytest.mark.asyncio
 async def test_list_skills_reads_registry(tmp_path: Path):
     original_root = settings.SKILL_INSTALL_ROOT
@@ -219,6 +255,129 @@ async def test_remote_install_rejected_when_disabled():
     assert exc_info.value.status_code == 403
     assert any(isinstance(item, SkillInstallTask) and item.status == "rejected" for item in db.added)
     assert any(isinstance(item, SkillAuditLog) and item.action == "skill.install_remote" for item in db.added)
+
+
+@pytest.mark.asyncio
+async def test_remote_install_downloads_and_installs_when_enabled(tmp_path: Path):
+    original_values = {
+        "SKILL_INSTALL_ROOT": settings.SKILL_INSTALL_ROOT,
+        "ENABLE_REMOTE_SKILL_INSTALL": settings.ENABLE_REMOTE_SKILL_INSTALL,
+        "SKILL_REMOTE_ALLOWED_HOSTS": settings.SKILL_REMOTE_ALLOWED_HOSTS,
+        "SKILL_REMOTE_REQUIRE_CHECKSUM": settings.SKILL_REMOTE_REQUIRE_CHECKSUM,
+        "SKILL_REMOTE_REQUIRE_SIGNATURE": settings.SKILL_REMOTE_REQUIRE_SIGNATURE,
+        "SKILL_REMOTE_ED25519_PUBLIC_KEY": settings.SKILL_REMOTE_ED25519_PUBLIC_KEY,
+    }
+    package_bytes = _build_skill_zip_bytes(slug="remote-demo", version="2.0.0", name="Remote Demo Skill")
+    checksum = hashlib.sha256(package_bytes).hexdigest()
+    signing_key = Ed25519PrivateKey.generate()
+    signature = base64.b64encode(signing_key.sign(package_bytes)).decode("utf-8")
+    settings.SKILL_INSTALL_ROOT = str(tmp_path)
+    settings.ENABLE_REMOTE_SKILL_INSTALL = True
+    settings.SKILL_REMOTE_ALLOWED_HOSTS = "example.com"
+    settings.SKILL_REMOTE_REQUIRE_CHECKSUM = True
+    settings.SKILL_REMOTE_REQUIRE_SIGNATURE = False
+    settings.SKILL_REMOTE_ED25519_PUBLIC_KEY = signing_key.public_key().public_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PublicFormat.SubjectPublicKeyInfo,
+    ).decode("utf-8")
+
+    try:
+        db = FakeSession()
+        url = "https://example.com/skills/remote-demo.zip"
+        async with respx.mock:
+            route = respx.get(url).mock(
+                return_value=httpx.Response(
+                    200,
+                    content=package_bytes,
+                    headers={
+                        "content-length": str(len(package_bytes)),
+                        "content-type": "application/zip",
+                    },
+                )
+            )
+            task = await skill_service.install_remote_skill(
+                db,
+                package_url=url,
+                checksum=checksum,
+                signature=signature,
+                signature_algorithm="ed25519",
+                current_user=SimpleNamespace(id=1, username="admin", role="admin"),
+            )
+        registry = json.loads((tmp_path / "registry" / "installed.json").read_text(encoding="utf-8"))
+    finally:
+        for key, value in original_values.items():
+            setattr(settings, key, value)
+
+    assert route.called
+    assert task is not None
+    assert task.status == "installed"
+    assert task.installed_skill_slug == "remote-demo"
+    assert task.installed_skill_version == "2.0.0"
+    assert registry["skills"][0]["slug"] == "remote-demo"
+    assert registry["skills"][0]["source_type"] == "remote"
+    assert task.details["download"]["size_bytes"] == len(package_bytes)
+    assert task.details["verification"]["checksum_verified"] is True
+    assert task.details["verification"]["signature_verified"] is True
+    assert any(isinstance(item, SkillInstallTask) and item.status == "installed" for item in db.added)
+    assert any(
+        isinstance(item, SkillAuditLog) and item.action == "skill.install_remote" and item.status == "success"
+        for item in db.added
+    )
+
+
+@pytest.mark.asyncio
+async def test_remote_install_rejects_checksum_mismatch(tmp_path: Path):
+    original_values = {
+        "SKILL_INSTALL_ROOT": settings.SKILL_INSTALL_ROOT,
+        "ENABLE_REMOTE_SKILL_INSTALL": settings.ENABLE_REMOTE_SKILL_INSTALL,
+        "SKILL_REMOTE_ALLOWED_HOSTS": settings.SKILL_REMOTE_ALLOWED_HOSTS,
+        "SKILL_REMOTE_REQUIRE_CHECKSUM": settings.SKILL_REMOTE_REQUIRE_CHECKSUM,
+        "SKILL_REMOTE_REQUIRE_SIGNATURE": settings.SKILL_REMOTE_REQUIRE_SIGNATURE,
+        "SKILL_REMOTE_ED25519_PUBLIC_KEY": settings.SKILL_REMOTE_ED25519_PUBLIC_KEY,
+    }
+    package_bytes = _build_skill_zip_bytes(slug="remote-bad", version="1.0.0", name="Remote Bad Skill")
+    settings.SKILL_INSTALL_ROOT = str(tmp_path)
+    settings.ENABLE_REMOTE_SKILL_INSTALL = True
+    settings.SKILL_REMOTE_ALLOWED_HOSTS = "example.com"
+    settings.SKILL_REMOTE_REQUIRE_CHECKSUM = True
+    settings.SKILL_REMOTE_REQUIRE_SIGNATURE = False
+    settings.SKILL_REMOTE_ED25519_PUBLIC_KEY = ""
+
+    try:
+        db = FakeSession()
+        url = "https://example.com/skills/remote-bad.zip"
+        async with respx.mock:
+            respx.get(url).mock(
+                return_value=httpx.Response(
+                    200,
+                    content=package_bytes,
+                    headers={
+                        "content-length": str(len(package_bytes)),
+                        "content-type": "application/zip",
+                    },
+                )
+            )
+            with pytest.raises(HTTPException) as exc_info:
+                await skill_service.install_remote_skill(
+                    db,
+                    package_url=url,
+                    checksum="0" * 64,
+                    signature=None,
+                    signature_algorithm=None,
+                    current_user=SimpleNamespace(id=1, username="admin", role="admin"),
+                )
+    finally:
+        for key, value in original_values.items():
+            setattr(settings, key, value)
+
+    assert exc_info.value.status_code == 400
+    failed_task = next(item for item in db.added if isinstance(item, SkillInstallTask))
+    assert failed_task.status == "rejected"
+    assert failed_task.details["host"] == "example.com"
+    assert any(
+        isinstance(item, SkillAuditLog) and item.action == "skill.install_remote" and item.status == "rejected"
+        for item in db.added
+    )
 
 
 @pytest.mark.asyncio

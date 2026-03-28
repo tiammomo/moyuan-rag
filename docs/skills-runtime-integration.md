@@ -58,7 +58,7 @@ Reason:
 - The repository is still focused on stable local RAG delivery rather than a general plugin marketplace.
 - The current safety model is not yet ready for direct remote package ingestion in production-like environments.
 
-The next operator-facing phase is documented in:
+Later operator-facing phases are documented in:
 - [skills-governance-hardening.md](./skills-governance-hardening.md)
 - [skills-admin-console.md](./skills-admin-console.md)
-- [skills-remote-install-execution-plan.md](./skills-remote-install-execution-plan.md)
+- [skills-remote-install-execution.md](./skills-remote-install-execution.md)

@@ -9,6 +9,7 @@ Completed outcomes:
 - Local and remote skill install attempts now create persistent install task records.
 - Skill install, bind, update, and unbind actions now write audit logs.
 - Admin-only query endpoints now expose install tasks and audit logs for operators.
+- Controlled remote install can now download allowed packages, verify checksum, optionally verify Ed25519 signatures, and persist verification metadata before extraction.
 - Version pinning and rollback behavior are now documented for the next controlled rollout phase.
 - Remote source allowlist and operator workflow are now documented as a runbook.
 
@@ -43,10 +44,10 @@ Remote install is still disabled by default.
 
 Current behavior:
 - feature flag disabled: request is rejected and still recorded
-- feature flag enabled: request enters validation, persists verification markers, then stops at a controlled `501 not implemented`
+- feature flag enabled: request validates host / checksum / signature policy, downloads the package, verifies trust metadata, then extracts and installs the skill
 - operator console: admins can inspect a single task and trigger retry / cancel only when the current task status is safe
 
-This keeps the governance trail in place without enabling unsafe package ingestion yet.
+This keeps the governance trail explicit while still requiring allowlist and signature policy to be configured deliberately.
 
 ## Related Docs
 
@@ -54,4 +55,4 @@ This keeps the governance trail in place without enabling unsafe package ingesti
 - [skills-versioning-and-rollback.md](./skills-versioning-and-rollback.md)
 - [skills-remote-allowlist-runbook.md](./skills-remote-allowlist-runbook.md)
 - [skills-admin-console.md](./skills-admin-console.md)
-- [skills-remote-install-execution-plan.md](./skills-remote-install-execution-plan.md)
+- [skills-remote-install-execution.md](./skills-remote-install-execution.md)

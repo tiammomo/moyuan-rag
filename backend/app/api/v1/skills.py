@@ -49,7 +49,7 @@ async def install_remote_skill(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    await skill_service.install_remote_skill(
+    task = await skill_service.install_remote_skill(
         db,
         package_url=request.package_url,
         checksum=request.checksum,
@@ -57,7 +57,13 @@ async def install_remote_skill(
         signature_algorithm=request.signature_algorithm,
         current_user=current_user,
     )
-    return {"message": "Remote install request accepted"}
+    return {
+        "message": "Remote install request completed",
+        "install_task_id": getattr(task, "id", None),
+        "status": getattr(task, "status", None),
+        "installed_skill_slug": getattr(task, "installed_skill_slug", None),
+        "installed_skill_version": getattr(task, "installed_skill_version", None),
+    }
 
 
 @router.get("/install-tasks", response_model=SkillInstallTaskListResponse, summary="List skill install tasks")

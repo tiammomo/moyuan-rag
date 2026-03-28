@@ -36,7 +36,7 @@
 - **微服务 Worker 架构**: 文档解析、切片、向量化与召回评测均通过 Kafka Worker 异步解耦处理。
 - **MiniMax 大模型接入**: 已实测支持通过 Anthropic 兼容接口接入 MiniMax 作为聊天模型，完成真实 RAG 问答。
 - **Skills Runtime 能力**: 已支持本地 skill 注册表、机器人技能绑定与排序、运行时 prompt 注入，以及聊天页和机器人页的技能展示。
-- **Skills 治理强化**: 已支持 install task 持久化、操作审计日志、远端来源白名单与 checksum / signature 安全门槛，为后续受控 marketplace 做准备。
+- **Skills 治理强化**: 已支持 install task 持久化、操作审计日志、远端来源白名单、受控远端下载、checksum 校验与可选 Ed25519 签名校验，为后续受控 marketplace 做准备。
 - **Skills 管理后台**: 已提供 `/admin/skills` 治理台，用于查看安装任务、单任务详情、审计日志、版本差异、漂移绑定和回滚准备信息，并可对符合条件的远端安装任务执行 retry / cancel。
 - **SiliconFlow 深度集成**: 针对大模型 Embedding 接口提供自动分批、指数退火重试及详细错误诊断。
 
@@ -239,6 +239,8 @@ python backend/scripts/repair_demo_unicode.py
 | `SKILL_REMOTE_REQUIRE_CHECKSUM` | 是否强制远端安装请求携带 checksum | `True` |
 | `SKILL_REMOTE_REQUIRE_SIGNATURE` | 是否强制远端安装请求携带签名 | `False` |
 | `SKILL_REMOTE_MAX_PACKAGE_MB` | 允许的远端 skill 包最大体积 | `20` |
+| `SKILL_REMOTE_DOWNLOAD_TIMEOUT_SECONDS` | 远端 skill 包下载超时时间（秒） | `60` |
+| `SKILL_REMOTE_ED25519_PUBLIC_KEY` | 可选的 Ed25519 公钥，用于校验远端 skill 签名 | 空 |
 
 ---
 
@@ -321,7 +323,8 @@ python backend/scripts/local_integration.py --start-infra
 - [docs/skills-bootstrap-slice.md](docs/skills-bootstrap-slice.md)
 - [docs/skills-runtime-integration.md](docs/skills-runtime-integration.md)
 - [docs/skills-admin-console.md](docs/skills-admin-console.md)
-- [docs/skills-remote-install-execution-plan.md](docs/skills-remote-install-execution-plan.md)
+- [docs/skills-remote-install-execution.md](docs/skills-remote-install-execution.md)
+- [docs/skills-remote-install-operator-ui-plan.md](docs/skills-remote-install-operator-ui-plan.md)
 
 ## RAG 教学文档
 

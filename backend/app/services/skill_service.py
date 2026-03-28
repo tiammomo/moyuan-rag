@@ -4,6 +4,8 @@ Filesystem-backed skill registry service for the bootstrap slice.
 
 from __future__ import annotations
 
+import base64
+import binascii
 from collections import defaultdict
 import hashlib
 import json
@@ -17,6 +19,10 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
+from cryptography.exceptions import InvalidSignature
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
+import httpx
 import yaml
 from fastapi import HTTPException, UploadFile, status
 from sqlalchemy import func, select
@@ -54,6 +60,8 @@ class SkillService:
 
     REMOTE_RETRYABLE_STATUSES = {"failed", "rejected", "cancelled"}
     REMOTE_CANCELLABLE_STATUSES = {"pending", "queued", "verifying", "downloading"}
+    REMOTE_SIGNATURE_DEFAULT_ALGORITHM = "ed25519"
+    REMOTE_SIGNATURE_SUPPORTED_ALGORITHMS = {REMOTE_SIGNATURE_DEFAULT_ALGORITHM}
 
     @property
     def install_root(self) -> Path:
@@ -287,17 +295,20 @@ class SkillService:
         destination.mkdir(parents=True, exist_ok=True)
         dest_root = destination.resolve()
 
-        with zipfile.ZipFile(archive_path, "r") as archive:
-            for member in archive.infolist():
-                target = (destination / member.filename).resolve()
-                if not str(target).startswith(str(dest_root)):
-                    raise HTTPException(status_code=400, detail="Invalid zip entry path")
-                if member.is_dir():
-                    target.mkdir(parents=True, exist_ok=True)
-                    continue
-                target.parent.mkdir(parents=True, exist_ok=True)
-                with archive.open(member) as source, open(target, "wb") as output:
-                    shutil.copyfileobj(source, output)
+        try:
+            with zipfile.ZipFile(archive_path, "r") as archive:
+                for member in archive.infolist():
+                    target = (destination / member.filename).resolve()
+                    if not str(target).startswith(str(dest_root)):
+                        raise HTTPException(status_code=400, detail="Invalid zip entry path")
+                    if member.is_dir():
+                        target.mkdir(parents=True, exist_ok=True)
+                        continue
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    with archive.open(member) as source, open(target, "wb") as output:
+                        shutil.copyfileobj(source, output)
+        except zipfile.BadZipFile as exc:
+            raise HTTPException(status_code=400, detail="Skill package is not a valid zip archive") from exc
 
     def _find_skill_root(self, quarantine_root: Path) -> Path:
         manifest_files = list(quarantine_root.rglob("skill.yaml"))
@@ -347,6 +358,186 @@ class SkillService:
                 merged[key] = value
         return merged
 
+    def _build_archive_name(self, preferred_name: str | None, *, default_name: str) -> str:
+        safe_name = os.path.basename(preferred_name or default_name) or default_name
+        if not safe_name.lower().endswith(".zip"):
+            safe_name = f"{safe_name}.zip"
+        return f"{uuid.uuid4().hex}-{safe_name}"
+
+    def _normalize_checksum(self, checksum: str | None) -> str | None:
+        if checksum is None:
+            return None
+
+        value = checksum.strip()
+        if not value:
+            return None
+
+        if ":" in value:
+            algorithm, digest = value.split(":", 1)
+            if algorithm.strip().lower() != "sha256":
+                raise HTTPException(status_code=400, detail="Only sha256 checksums are supported for remote skill installation.")
+            value = digest.strip()
+
+        value = value.lower()
+        if len(value) != 64 or any(char not in "0123456789abcdef" for char in value):
+            raise HTTPException(status_code=400, detail="Remote skill checksum must be a sha256 hex digest.")
+        return value
+
+    def _normalize_signature_algorithm(self, signature: str | None, signature_algorithm: str | None) -> str | None:
+        if not signature:
+            return None
+
+        algorithm = (signature_algorithm or self.REMOTE_SIGNATURE_DEFAULT_ALGORITHM).strip().lower()
+        if algorithm not in self.REMOTE_SIGNATURE_SUPPORTED_ALGORITHMS:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unsupported remote skill signature algorithm: {algorithm}.",
+            )
+        return algorithm
+
+    def _decode_signature(self, signature: str) -> bytes:
+        raw_value = signature.strip()
+        if not raw_value:
+            raise HTTPException(status_code=400, detail="Remote skill signature cannot be empty.")
+
+        try:
+            return base64.b64decode(raw_value, validate=True)
+        except binascii.Error:
+            try:
+                return bytes.fromhex(raw_value)
+            except ValueError as exc:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Remote skill signature must be base64 or hex encoded.",
+                ) from exc
+
+    def _load_ed25519_public_key(self) -> Ed25519PublicKey:
+        raw_key = settings.SKILL_REMOTE_ED25519_PUBLIC_KEY.strip()
+        if not raw_key:
+            raise HTTPException(
+                status_code=400,
+                detail="SKILL_REMOTE_ED25519_PUBLIC_KEY must be configured before verifying remote skill signatures.",
+            )
+
+        try:
+            if "BEGIN PUBLIC KEY" in raw_key:
+                public_key = serialization.load_pem_public_key(raw_key.encode("utf-8"))
+            else:
+                public_key = Ed25519PublicKey.from_public_bytes(base64.b64decode(raw_key, validate=True))
+        except Exception as exc:  # pragma: no cover - defensive branch
+            raise HTTPException(
+                status_code=400,
+                detail="SKILL_REMOTE_ED25519_PUBLIC_KEY is invalid.",
+            ) from exc
+
+        if not isinstance(public_key, Ed25519PublicKey):
+            raise HTTPException(
+                status_code=400,
+                detail="SKILL_REMOTE_ED25519_PUBLIC_KEY must contain an Ed25519 public key.",
+            )
+        return public_key
+
+    def _verify_remote_signature(
+        self,
+        *,
+        signature: str | None,
+        signature_algorithm: str | None,
+        package_bytes: bytes,
+    ) -> dict[str, Any]:
+        algorithm = self._normalize_signature_algorithm(signature, signature_algorithm)
+        if not signature or not algorithm:
+            return {
+                "signature_present": False,
+                "signature_algorithm": signature_algorithm,
+                "signature_verified": None,
+            }
+
+        if algorithm == "ed25519":
+            public_key = self._load_ed25519_public_key()
+            try:
+                public_key.verify(self._decode_signature(signature), package_bytes)
+            except InvalidSignature as exc:
+                raise HTTPException(status_code=400, detail="Remote skill signature verification failed.") from exc
+            return {
+                "signature_present": True,
+                "signature_algorithm": algorithm,
+                "signature_verified": True,
+            }
+
+        raise HTTPException(status_code=400, detail=f"Unsupported remote skill signature algorithm: {algorithm}.")
+
+    async def _download_remote_package(
+        self,
+        *,
+        package_url: str,
+    ) -> tuple[Path, str, int, str | None]:
+        self.ensure_layout()
+        parsed = urlparse(package_url)
+        archive_name = self._build_archive_name(
+            Path(parsed.path).name or None,
+            default_name="remote-skill-package.zip",
+        )
+        archive_path = self.uploads_dir / archive_name
+        max_bytes = settings.SKILL_REMOTE_MAX_PACKAGE_MB * 1024 * 1024
+        timeout = httpx.Timeout(settings.SKILL_REMOTE_DOWNLOAD_TIMEOUT_SECONDS)
+
+        try:
+            async with httpx.AsyncClient(timeout=timeout, follow_redirects=False) as client:
+                async with client.stream("GET", package_url, headers={"Accept": "application/zip, application/octet-stream"}) as response:
+                    if 300 <= response.status_code < 400:
+                        raise HTTPException(
+                            status_code=400,
+                            detail="Remote skill download URLs must not redirect to another location.",
+                        )
+                    if response.status_code != status.HTTP_200_OK:
+                        raise HTTPException(
+                            status_code=502,
+                            detail=f"Failed to download remote skill package: upstream returned HTTP {response.status_code}.",
+                        )
+
+                    content_length = response.headers.get("content-length")
+                    if content_length:
+                        try:
+                            if int(content_length) > max_bytes:
+                                raise HTTPException(
+                                    status_code=413,
+                                    detail=f"Remote skill package exceeds the {settings.SKILL_REMOTE_MAX_PACKAGE_MB} MB limit.",
+                                )
+                        except ValueError:
+                            pass
+
+                    total_bytes = 0
+                    with open(archive_path, "wb") as output:
+                        async for chunk in response.aiter_bytes():
+                            total_bytes += len(chunk)
+                            if total_bytes > max_bytes:
+                                raise HTTPException(
+                                    status_code=413,
+                                    detail=f"Remote skill package exceeds the {settings.SKILL_REMOTE_MAX_PACKAGE_MB} MB limit.",
+                                )
+                            output.write(chunk)
+
+                    if total_bytes == 0:
+                        raise HTTPException(status_code=400, detail="Downloaded remote skill package is empty.")
+
+                    return archive_path, archive_name, total_bytes, response.headers.get("content-type")
+        except HTTPException:
+            archive_path.unlink(missing_ok=True)
+            raise
+        except httpx.HTTPError as exc:
+            archive_path.unlink(missing_ok=True)
+            raise HTTPException(status_code=502, detail=f"Failed to download remote skill package: {exc}") from exc
+
+    def _remote_failure_status(self, exc: Exception) -> str:
+        if isinstance(exc, HTTPException) and exc.status_code in {
+            status.HTTP_400_BAD_REQUEST,
+            status.HTTP_403_FORBIDDEN,
+            status.HTTP_409_CONFLICT,
+            status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+        }:
+            return "rejected"
+        return "failed"
+
     async def _create_install_task(
         self,
         db: AsyncSession,
@@ -386,6 +577,7 @@ class SkillService:
         task: SkillInstallTask | None,
         *,
         status_value: str,
+        package_name: str | None = None,
         package_checksum: str | None = None,
         error_message: str | None = None,
         installed_skill_slug: str | None = None,
@@ -397,6 +589,8 @@ class SkillService:
             return task
 
         task.status = status_value
+        if package_name is not None:
+            task.package_name = package_name
         if package_checksum is not None:
             task.package_checksum = package_checksum
         if error_message is not None:
@@ -454,6 +648,7 @@ class SkillService:
         package_url: str,
         checksum: str | None,
         signature: str | None,
+        signature_algorithm: str | None,
     ) -> str:
         parsed = urlparse(package_url)
         host = (parsed.hostname or "").lower()
@@ -473,7 +668,133 @@ class SkillService:
         if settings.SKILL_REMOTE_REQUIRE_SIGNATURE and not signature:
             raise HTTPException(status_code=400, detail="Signature is required for remote skill installation.")
 
+        self._normalize_checksum(checksum)
+        self._normalize_signature_algorithm(signature, signature_algorithm)
         return host
+
+    async def _install_archive_file(
+        self,
+        db: AsyncSession,
+        *,
+        archive_path: Path,
+        package_name: str,
+        package_checksum: str,
+        source_type: str,
+        current_user: User,
+        install_task: SkillInstallTask | None,
+        audit_action: str,
+        audit_details: dict[str, Any] | None = None,
+    ) -> SkillInstallResponse:
+        quarantine_root = self.quarantine_dir / uuid.uuid4().hex
+        try:
+            await self._update_install_task(
+                db,
+                install_task,
+                status_value="extracting",
+                package_name=package_name,
+                package_checksum=package_checksum,
+                details={"archive_name": archive_path.name, "quarantine_root": quarantine_root.name},
+            )
+            self._safe_extract_zip(archive_path, quarantine_root)
+            skill_root = self._find_skill_root(quarantine_root)
+            manifest = self._validate_skill_root(skill_root)
+
+            slug = str(manifest["slug"])
+            version = str(manifest["version"])
+            target_dir = self.extracted_dir / slug / version
+            if target_dir.exists():
+                raise HTTPException(status_code=409, detail="This skill version is already installed")
+
+            target_dir.parent.mkdir(parents=True, exist_ok=True)
+            shutil.move(str(skill_root), str(target_dir))
+
+            record = {
+                "slug": slug,
+                "name": manifest.get("name", slug),
+                "version": version,
+                "description": manifest.get("description"),
+                "category": manifest.get("category"),
+                "source_type": source_type,
+                "status": "active",
+                "checksum": package_checksum,
+                "install_path": target_dir.relative_to(self.install_root).as_posix(),
+                "manifest_path": (target_dir / "skill.yaml").relative_to(self.install_root).as_posix(),
+                "readme_path": (target_dir / "SKILL.md").relative_to(self.install_root).as_posix(),
+                "installed_at": datetime.now(timezone.utc).isoformat(),
+                "installed_by": getattr(current_user, "username", None),
+            }
+            if audit_details and audit_details.get("package_url"):
+                record["package_url"] = audit_details["package_url"]
+            self._upsert_registry_record(record)
+            await self._update_install_task(
+                db,
+                install_task,
+                status_value="installed",
+                package_name=package_name,
+                package_checksum=package_checksum,
+                installed_skill_slug=slug,
+                installed_skill_version=version,
+                details={"install_path": record["install_path"]},
+                finished=True,
+            )
+            await self._record_audit_log(
+                db,
+                action=audit_action,
+                target_type="skill_install",
+                status_value="success",
+                current_user=current_user,
+                message=f"{source_type.title()} skill package installed successfully.",
+                skill_slug=slug,
+                skill_version=version,
+                install_task_id=getattr(install_task, "id", None),
+                details=self._merge_details(
+                    audit_details,
+                    {
+                        "package_name": package_name,
+                        "checksum": package_checksum,
+                    },
+                ),
+            )
+            detail = await self.get_skill_detail(db, slug)
+            return SkillInstallResponse(
+                message="Skill installed successfully",
+                skill=detail,
+                install_task_id=getattr(install_task, "id", None),
+            )
+        except Exception as exc:
+            if hasattr(db, "rollback"):
+                await db.rollback()
+            status_value = self._remote_failure_status(exc) if source_type == "remote" else "failed"
+            await self._update_install_task(
+                db,
+                install_task,
+                status_value=status_value,
+                package_name=package_name,
+                package_checksum=package_checksum,
+                error_message=self._error_message(exc),
+                details={"archive_name": archive_path.name},
+                finished=True,
+            )
+            await self._record_audit_log(
+                db,
+                action=audit_action,
+                target_type="skill_install",
+                status_value=status_value,
+                current_user=current_user,
+                message=self._error_message(exc),
+                install_task_id=getattr(install_task, "id", None),
+                details=self._merge_details(
+                    audit_details,
+                    {
+                        "package_name": package_name,
+                        "checksum": package_checksum,
+                    },
+                ),
+            )
+            raise
+        finally:
+            shutil.rmtree(quarantine_root, ignore_errors=True)
+            archive_path.unlink(missing_ok=True)
 
     async def list_install_tasks(
         self,
@@ -561,7 +882,7 @@ class SkillService:
         self.ensure_layout()
         package_bytes = await package.read()
         package_checksum = self._sha256(package_bytes)
-        archive_name = f"{uuid.uuid4().hex}-{os.path.basename(package.filename)}"
+        archive_name = self._build_archive_name(package.filename, default_name="local-skill-package.zip")
         archive_path = self.uploads_dir / archive_name
         archive_path.write_bytes(package_bytes)
         install_task = await self._create_install_task(
@@ -575,98 +896,17 @@ class SkillService:
             current_user=current_user,
             details={"archive_name": archive_name},
         )
-
-        quarantine_root = self.quarantine_dir / uuid.uuid4().hex
-        try:
-            await self._update_install_task(
-                db,
-                install_task,
-                status_value="extracting",
-                package_checksum=package_checksum,
-                details={"quarantine_root": quarantine_root.name},
-            )
-            self._safe_extract_zip(archive_path, quarantine_root)
-            skill_root = self._find_skill_root(quarantine_root)
-            manifest = self._validate_skill_root(skill_root)
-
-            slug = str(manifest["slug"])
-            version = str(manifest["version"])
-            target_dir = self.extracted_dir / slug / version
-            if target_dir.exists():
-                raise HTTPException(status_code=409, detail="This skill version is already installed")
-
-            target_dir.parent.mkdir(parents=True, exist_ok=True)
-            shutil.move(str(skill_root), str(target_dir))
-
-            record = {
-                "slug": slug,
-                "name": manifest.get("name", slug),
-                "version": version,
-                "description": manifest.get("description"),
-                "category": manifest.get("category"),
-                "source_type": "local",
-                "status": "active",
-                "checksum": package_checksum,
-                "install_path": target_dir.relative_to(self.install_root).as_posix(),
-                "manifest_path": (target_dir / "skill.yaml").relative_to(self.install_root).as_posix(),
-                "readme_path": (target_dir / "SKILL.md").relative_to(self.install_root).as_posix(),
-                "installed_at": datetime.now(timezone.utc).isoformat(),
-                "installed_by": getattr(current_user, "username", None),
-            }
-            self._upsert_registry_record(record)
-            await self._update_install_task(
-                db,
-                install_task,
-                status_value="installed",
-                package_checksum=package_checksum,
-                installed_skill_slug=slug,
-                installed_skill_version=version,
-                details={"install_path": record["install_path"]},
-                finished=True,
-            )
-            await self._record_audit_log(
-                db,
-                action="skill.install_local",
-                target_type="skill_install",
-                status_value="success",
-                current_user=current_user,
-                message="Local skill package installed successfully.",
-                skill_slug=slug,
-                skill_version=version,
-                install_task_id=getattr(install_task, "id", None),
-                details={"package_name": package.filename, "checksum": package_checksum},
-            )
-            detail = await self.get_skill_detail(db, slug)
-            return SkillInstallResponse(
-                message="Skill installed successfully",
-                skill=detail,
-                install_task_id=getattr(install_task, "id", None),
-            )
-        except Exception as exc:
-            if hasattr(db, "rollback"):
-                await db.rollback()
-            await self._update_install_task(
-                db,
-                install_task,
-                status_value="failed",
-                package_checksum=package_checksum,
-                error_message=self._error_message(exc),
-                details={"package_name": package.filename},
-                finished=True,
-            )
-            await self._record_audit_log(
-                db,
-                action="skill.install_local",
-                target_type="skill_install",
-                status_value="failed",
-                current_user=current_user,
-                message=self._error_message(exc),
-                install_task_id=getattr(install_task, "id", None),
-                details={"package_name": package.filename, "checksum": package_checksum},
-            )
-            raise
-        finally:
-            shutil.rmtree(quarantine_root, ignore_errors=True)
+        return await self._install_archive_file(
+            db,
+            archive_path=archive_path,
+            package_name=package.filename,
+            package_checksum=package_checksum,
+            source_type="local",
+            current_user=current_user,
+            install_task=install_task,
+            audit_action="skill.install_local",
+            audit_details={"package_name": package.filename},
+        )
 
     async def _process_remote_install_task(
         self,
@@ -707,9 +947,9 @@ class SkillService:
             return install_task
 
         try:
-            host = self._validate_remote_install_request(package_url, checksum, signature)
+            host = self._validate_remote_install_request(package_url, checksum, signature, signature_algorithm)
         except Exception as exc:
-            status_value = "rejected" if isinstance(exc, HTTPException) else "failed"
+            status_value = self._remote_failure_status(exc)
             await self._update_install_task(
                 db,
                 install_task,
@@ -736,48 +976,105 @@ class SkillService:
                 raise
             return install_task
 
-        await self._update_install_task(
-            db,
-            install_task,
-            status_value="verifying",
-            details={
-                "host": host,
-                "verification": {
-                    "checksum_present": bool(checksum),
-                    "signature_present": bool(signature),
-                    "signature_algorithm": signature_algorithm,
-                },
-            },
-        )
-        await self._update_install_task(
-            db,
-            install_task,
-            status_value="failed",
-            error_message="Remote skill install is not implemented in the current controlled phase.",
-            details={"host": host, "verified": True},
-            finished=True,
-        )
-        await self._record_audit_log(
-            db,
-            action=audit_action,
-            target_type="skill_install",
-            status_value="failed",
-            current_user=current_user,
-            message="Remote skill install is not implemented in the current controlled phase.",
-            install_task_id=getattr(install_task, "id", None),
-            details={
-                "package_url": package_url,
-                "checksum": checksum,
-                "host": host,
-                "signature_algorithm": signature_algorithm,
-            },
-        )
-        if raise_on_terminal_error:
-            raise HTTPException(
-                status_code=status.HTTP_501_NOT_IMPLEMENTED,
-                detail="Remote skill install is not implemented in the current controlled phase.",
+        normalized_checksum = self._normalize_checksum(checksum)
+        package_name: str | None = None
+        archive_path: Path | None = None
+        try:
+            await self._update_install_task(
+                db,
+                install_task,
+                status_value="downloading",
+                details={"host": host},
             )
-        return install_task
+            archive_path, archive_name, download_size, content_type = await self._download_remote_package(package_url=package_url)
+            package_name = archive_name
+            package_bytes = archive_path.read_bytes()
+            actual_checksum = self._sha256(package_bytes)
+            checksum_verified = normalized_checksum == actual_checksum if normalized_checksum else None
+            if normalized_checksum and normalized_checksum != actual_checksum:
+                raise HTTPException(status_code=400, detail="Remote skill checksum verification failed.")
+
+            signature_details = self._verify_remote_signature(
+                signature=signature,
+                signature_algorithm=signature_algorithm,
+                package_bytes=package_bytes,
+            )
+            await self._update_install_task(
+                db,
+                install_task,
+                status_value="verifying",
+                package_name=archive_name,
+                package_checksum=actual_checksum,
+                details={
+                    "host": host,
+                    "download": {
+                        "archive_name": archive_name,
+                        "content_type": content_type,
+                        "size_bytes": download_size,
+                    },
+                    "verification": {
+                        "checksum_expected": normalized_checksum,
+                        "checksum_actual": actual_checksum,
+                        "checksum_verified": checksum_verified,
+                        **signature_details,
+                    },
+                },
+            )
+            await self._install_archive_file(
+                db,
+                archive_path=archive_path,
+                package_name=archive_name,
+                package_checksum=actual_checksum,
+                source_type="remote",
+                current_user=current_user,
+                install_task=install_task,
+                audit_action=audit_action,
+                audit_details={
+                    "package_url": package_url,
+                    "host": host,
+                    "verification": {
+                        "checksum_expected": normalized_checksum,
+                        "checksum_actual": actual_checksum,
+                        "checksum_verified": checksum_verified,
+                        **signature_details,
+                    },
+                },
+            )
+            return install_task
+        except Exception as exc:
+            if archive_path is not None:
+                archive_path.unlink(missing_ok=True)
+
+            already_finished = bool(getattr(install_task, "finished_at", None))
+            if not already_finished:
+                status_value = self._remote_failure_status(exc)
+                await self._update_install_task(
+                    db,
+                    install_task,
+                    status_value=status_value,
+                    package_name=package_name,
+                    error_message=self._error_message(exc),
+                    details={"host": host, "package_url": package_url},
+                    finished=True,
+                )
+                await self._record_audit_log(
+                    db,
+                    action=audit_action,
+                    target_type="skill_install",
+                    status_value=status_value,
+                    current_user=current_user,
+                    message=self._error_message(exc),
+                    install_task_id=getattr(install_task, "id", None),
+                    details={
+                        "package_url": package_url,
+                        "host": host,
+                        "checksum": normalized_checksum,
+                        "signature_algorithm": signature_algorithm,
+                    },
+                )
+            if raise_on_terminal_error:
+                raise
+            return install_task
 
     async def install_remote_skill(
         self,

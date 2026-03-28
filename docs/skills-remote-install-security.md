@@ -33,21 +33,21 @@
 当前远端安装行为是：
 
 - 功能关闭时：请求会被拒绝，但仍会落 install task 和 audit log
-- 功能开启时：请求会先过校验、写入 verification 元信息，再在受控位置返回 `501 not implemented`
+- 功能开启时：请求会执行 allowlist 校验、下载、checksum 校验、可选 Ed25519 签名校验，再进入解压安装
 - 管理员可以在 `/admin/skills` 查看单个 install task 的详情，并对允许的远端任务执行 retry / cancel
 
-这意味着治理链路已经存在，但真正的包下载和执行仍未开启。
+这意味着治理链路和受控执行链路都已经存在，但仍然需要通过 feature flag 和 allowlist 显式开启。
 
 ## Recommended Controlled Workflow
 
 ```mermaid
 flowchart LR
     A["Admin requests remote install"] --> B["Validate allowlist host"]
-    B --> C["Validate checksum / signature policy"]
-    C --> D["Persist install task"]
-    D --> E["Download to quarantine"]
+    B --> C["Persist install task"]
+    C --> D["Download package"]
+    D --> E["Verify checksum / optional Ed25519 signature"]
     E --> F["Extract and validate manifest"]
-    F --> G["Record audit log"]
+    F --> G["Write install task + audit log"]
     G --> H["Require explicit robot binding"]
 ```
 
@@ -58,8 +58,8 @@ flowchart LR
 1. 明确环境是否允许远端安装。
 2. 仅配置受控主机到 allowlist。
 3. 保持 checksum 校验开启。
-4. 如果签名体系已经准备好，再开启 signature 要求。
-5. 安装后先看 install tasks 和 audit logs，再决定是否绑定到机器人。
+4. 如果签名体系已经准备好，配置 `SKILL_REMOTE_ED25519_PUBLIC_KEY`，再开启 signature 要求。
+5. 安装后先看 install tasks 里的 verification 字段和 audit logs，再决定是否绑定到机器人。
 
 ## Related Docs
 
@@ -67,4 +67,4 @@ flowchart LR
 - [skills-versioning-and-rollback.md](./skills-versioning-and-rollback.md)
 - [skills-remote-allowlist-runbook.md](./skills-remote-allowlist-runbook.md)
 - [skills-admin-console.md](./skills-admin-console.md)
-- [skills-remote-install-execution-plan.md](./skills-remote-install-execution-plan.md)
+- [skills-remote-install-execution.md](./skills-remote-install-execution.md)
