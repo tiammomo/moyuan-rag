@@ -39,7 +39,7 @@ export function ThinkingProcess({
         setIsTyping(false);
       }, 100);
     }
-  }, [content]);
+  }, [content, displayedContent]);
 
   const toggleExpand = () => {
     setIsExpanded(!isExpanded);

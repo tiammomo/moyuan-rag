@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import Image from 'next/image';
 import { useRouter, useParams } from 'next/navigation';
 import { 
   ChevronRight, 
@@ -131,7 +132,7 @@ export default function BotEditWithTestPage() {
     document.removeEventListener('mouseup', handleMouseUp);
     document.body.style.cursor = 'default';
     localStorage.setItem('bot_edit_split_width', leftWidth.toString());
-  }, [leftWidth]);
+  }, [handleMouseMove, leftWidth]);
 
   if (loading) return <PageLoading />;
   if (!botData || !draftData) return <div className="p-8 text-center">机器人不存在</div>;
@@ -203,7 +204,15 @@ export default function BotEditWithTestPage() {
                   <div className="flex-none">
                     <div className="h-16 w-16 rounded-full bg-primary-100 dark:bg-primary-900/50 flex items-center justify-center border-2 border-primary-200 dark:border-primary-800 overflow-hidden">
                       {draftData.avatar ? (
-                        <img src={draftData.avatar} alt="Avatar" className="h-full w-full object-cover" />
+                        <div className="relative h-full w-full">
+                          <Image
+                            src={draftData.avatar}
+                            alt={`${draftData.name || '机器人'}头像`}
+                            fill
+                            unoptimized
+                            className="object-cover"
+                          />
+                        </div>
                       ) : (
                         <Bot className="h-8 w-8 text-primary-600" />
                       )}

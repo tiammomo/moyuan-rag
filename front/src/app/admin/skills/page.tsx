@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -649,7 +649,7 @@ export default function AdminSkillsPage() {
     };
   }, [rollbackVariant, selectedSkill]);
 
-  const loadConsole = async (showLoading = true) => {
+  const loadConsole = useCallback(async (showLoading = true) => {
     if (showLoading) {
       setLoading(true);
     } else {
@@ -696,7 +696,17 @@ export default function AdminSkillsPage() {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, [
+    auditFilters.action_filter,
+    auditFilters.actor_username,
+    auditFilters.robot_id,
+    auditFilters.skill_slug,
+    auditFilters.status_filter,
+    taskFilters.requested_by_username,
+    taskFilters.skill_slug,
+    taskFilters.source_type,
+    taskFilters.status_filter,
+  ]);
 
   const loadSkillDetail = async (skillSlug: string) => {
     setDetailLoading(true);
@@ -753,19 +763,7 @@ export default function AdminSkillsPage() {
     if (user?.role === 'user') {
       router.push('/chat');
     }
-  }, [
-    auditFilters.action_filter,
-    auditFilters.actor_username,
-    auditFilters.robot_id,
-    auditFilters.skill_slug,
-    auditFilters.status_filter,
-    router,
-    taskFilters.requested_by_username,
-    taskFilters.skill_slug,
-    taskFilters.source_type,
-    taskFilters.status_filter,
-    user,
-  ]);
+  }, [loadConsole, router, user]);
 
   useEffect(() => {
     if (user?.role === 'admin' && selectedSkillSlug) {

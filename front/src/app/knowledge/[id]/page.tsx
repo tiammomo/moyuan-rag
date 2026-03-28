@@ -5,6 +5,7 @@ import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import rehypeRaw from 'rehype-raw';
+import Image from 'next/image';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import 'katex/dist/katex.min.css';
@@ -328,7 +329,7 @@ export default function KnowledgeDetailPage() {
         }
       };
     }
-  }, [documents]);
+  }, [addFailedUpload, documents, knowledgeId, removeFailedUpload]);
 
   // 清理轮询定时器
   useEffect(() => {
@@ -877,11 +878,15 @@ export default function KnowledgeDetailPage() {
                       <p className="text-sm text-gray-500">姝ｅ湪鍔犺浇鍥剧墖...</p>
                     </div>
                   ) : (
-                    <img
-                      src={previewBlobUrl}
-                      alt={selectedDoc.file_name}
-                      className="max-w-full max-h-full object-contain"
-                    />
+                    <div className="relative h-full w-full">
+                      <Image
+                        src={previewBlobUrl}
+                        alt={selectedDoc.file_name}
+                        fill
+                        unoptimized
+                        className="object-contain"
+                      />
+                    </div>
                   )
                 )}
 
@@ -995,7 +1000,7 @@ export default function KnowledgeDetailPage() {
                               </code>
                             );
                           },
-                          img({ node, src, ...props }: any) {
+                          img({ node, src, alt, ...props }: any) {
                             // 处理相对路径图片
                             let fullSrc = src;
                             if (src && !src.startsWith('http') && !src.startsWith('data:')) {
@@ -1005,11 +1010,14 @@ export default function KnowledgeDetailPage() {
                             }
                             return (
                               <div className="my-4 flex justify-center">
-                                <img 
-                                  {...props} 
+                                <Image
+                                  {...props}
                                   src={fullSrc}
-                                  className="max-w-full rounded-lg shadow-md hover:shadow-xl transition-shadow duration-300" 
-                                  loading="lazy" 
+                                  alt={alt || ''}
+                                  width={1600}
+                                  height={900}
+                                  unoptimized
+                                  className="max-w-full h-auto rounded-lg shadow-md hover:shadow-xl transition-shadow duration-300"
                                 />
                               </div>
                             );

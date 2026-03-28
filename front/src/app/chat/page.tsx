@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, type HTMLAttributes, type ReactNode } from 'react';
+import { useState, useEffect, useRef, useCallback, type HTMLAttributes, type ReactNode } from 'react';
 import { Send, Plus, Trash2, MessageSquare, ChevronDown, ChevronRight, ThumbsUp, ThumbsDown, FileText, StopCircle, Copy, Check } from 'lucide-react';
 import toast from 'react-hot-toast';
 import ReactMarkdown from 'react-markdown';
@@ -203,13 +203,6 @@ export default function ChatPage() {
     loadRobots();
   }, [currentRobot, setCurrentRobot]);
 
-  // 加载会话列表
-  useEffect(() => {
-    if (currentRobot) {
-      loadSessions();
-    }
-  }, [currentRobot]);
-
   useEffect(() => {
     const loadActiveSkills = async () => {
       if (!currentRobot) {
@@ -265,7 +258,7 @@ export default function ChatPage() {
     }
   }, [currentSession, resetStreaming]);
 
-  const loadSessions = async () => {
+  const loadSessions = useCallback(async () => {
     if (!currentRobot) return;
     setLoadingSessions(true);
     try {
@@ -277,7 +270,14 @@ export default function ChatPage() {
     } finally {
       setLoadingSessions(false);
     }
-  };
+  }, [currentRobot, setSessions]);
+
+  // 加载会话列表
+  useEffect(() => {
+    if (currentRobot) {
+      void loadSessions();
+    }
+  }, [currentRobot, loadSessions]);
 
   const loadSessionMessages = async (sessionId: string) => {
     try {

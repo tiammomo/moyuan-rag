@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Plus, Search, Settings, Trash2, Edit2, Filter } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Button, Input } from '@/components/ui';
@@ -31,12 +31,7 @@ export default function LLMsAdminPage() {
   });
   const [editFormData, setEditFormData] = useState<LLMUpdate>({});
 
-  // 初始加载
-  useEffect(() => {
-    loadLLMs(modelTypeFilter);
-  }, []);
-
-  const loadLLMs = async (filter?: string) => {
+  const loadLLMs = useCallback(async (filter?: string) => {
     setLoading(true);
     try {
       const data = await llmApi.getList({ limit: 100, model_type: filter || undefined });
@@ -46,11 +41,15 @@ export default function LLMsAdminPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  // 初始加载
+  useEffect(() => {
+    void loadLLMs(modelTypeFilter);
+  }, [loadLLMs, modelTypeFilter]);
 
   const handleModelTypeChange = (value: string) => {
     setModelTypeFilter(value);
-    loadLLMs(value);
   };
 
   const handleCreate = async () => {
@@ -64,7 +63,7 @@ export default function LLMsAdminPage() {
       toast.success('LLM创建成功');
       setShowCreateModal(false);
       resetForm();
-      loadLLMs();
+      void loadLLMs(modelTypeFilter);
     } catch (error) {
       const message = error instanceof Error ? error.message : '创建失败';
       toast.error(message);
@@ -81,7 +80,7 @@ export default function LLMsAdminPage() {
       toast.success('LLM删除成功');
       setShowDeleteModal(false);
       setSelectedLLM(null);
-      loadLLMs();
+      void loadLLMs(modelTypeFilter);
     } catch (error) {
       const message = error instanceof Error ? error.message : '删除失败';
       toast.error(message);
@@ -98,7 +97,7 @@ export default function LLMsAdminPage() {
       toast.success('LLM更新成功');
       setShowEditModal(false);
       setSelectedLLM(null);
-      loadLLMs();
+      void loadLLMs(modelTypeFilter);
     } catch (error) {
       const message = error instanceof Error ? error.message : '更新失败';
       toast.error(message);

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Loader2, Plug, RefreshCcw, Unplug } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -35,7 +35,7 @@ export function RobotSkillManager({ robotId }: RobotSkillManagerProps) {
   const [loading, setLoading] = useState(true);
   const [busySlug, setBusySlug] = useState<string | null>(null);
 
-  const loadSkillState = async () => {
+  const loadSkillState = useCallback(async () => {
     setLoading(true);
     try {
       const [listResponse, bindingResponse] = await Promise.all([
@@ -51,11 +51,11 @@ export function RobotSkillManager({ robotId }: RobotSkillManagerProps) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [robotId]);
 
   useEffect(() => {
     void loadSkillState();
-  }, [robotId]);
+  }, [loadSkillState]);
 
   const boundSlugSet = useMemo(() => new Set(bindings.map((binding) => binding.skill_slug)), [bindings]);
   const activeBindings = useMemo(
