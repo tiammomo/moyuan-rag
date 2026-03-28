@@ -29,6 +29,11 @@ export function ActiveSkillBadges({
         >
           <span className="font-medium">{skill.skill_name || skill.skill_slug}</span>
           <span className="text-[11px] opacity-80">P{skill.priority}</span>
+          {skill.provenance_install_task_id ? (
+            <span className="rounded-full bg-white/70 px-1.5 py-0.5 text-[10px] text-primary-700 dark:bg-primary-900/60 dark:text-primary-200">
+              #{skill.provenance_install_task_id}
+            </span>
+          ) : null}
         </span>
       ))}
     </div>

@@ -39,6 +39,7 @@
 - **Skills 治理强化**: 已支持 install task 持久化、操作审计日志、远端来源白名单、受控远端下载、checksum 校验与可选 Ed25519 签名校验，为后续受控 marketplace 做准备。
 - **Skills 管理后台**: 已提供 `/admin/skills` 治理台，用于发起远端安装、查看安装任务、单任务详情、审计日志、版本差异、漂移绑定和回滚准备信息，并可对符合条件的远端安装任务执行 retry / cancel。
 - **Skills 安装交接闭环**: 已支持在 `/admin/skills` 的单任务详情中查看关联审计时间线、跳转到 skill 详情和机器人编辑页，并按 “review -> bind -> validate in chat” 完成安装后的交接验证。
+- **Skills Provenance 追踪**: 已支持把 install task 来源带入机器人 skill 绑定、审计日志和运行时 `active_skills`，让后台操作、机器人配置和聊天表现能串成同一条来源链路。
 - **SiliconFlow 深度集成**: 针对大模型 Embedding 接口提供自动分批、指数退火重试及详细错误诊断。
 
 ---
@@ -328,7 +329,8 @@ python backend/scripts/local_integration.py --start-infra
 - [docs/skills-remote-install-operator-ui.md](docs/skills-remote-install-operator-ui.md)
 - [docs/skills-remote-install-smoke-test.md](docs/skills-remote-install-smoke-test.md)
 - [docs/skills-install-handoff.md](docs/skills-install-handoff.md)
-- [docs/skills-provenance-plan.md](docs/skills-provenance-plan.md)
+- [docs/skills-provenance.md](docs/skills-provenance.md)
+- [docs/skills-validation-playbook-plan.md](docs/skills-validation-playbook-plan.md)
 
 ## RAG 教学文档
 

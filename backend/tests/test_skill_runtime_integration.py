@@ -158,7 +158,7 @@ async def test_runtime_bundle_collects_skill_prompts(tmp_path: Path):
             skill_version="0.1.0",
             priority=100,
             status="active",
-            binding_config={},
+            binding_config={"_provenance": {"install_task_id": 12}},
             created_at=datetime.now(timezone.utc),
             updated_at=datetime.now(timezone.utc),
         )
@@ -169,6 +169,7 @@ async def test_runtime_bundle_collects_skill_prompts(tmp_path: Path):
         settings.SKILL_INSTALL_ROOT = original_root
 
     assert [skill.skill_slug for skill in bundle.active_skills] == ["alpha-skill"]
+    assert bundle.active_skills[0].provenance_install_task_id == 12
     assert "Alpha Skill::system_prompt" in bundle.system_prompts[0]
     assert "Alpha Skill::retrieval_prompt" in bundle.retrieval_prompts[0]
     assert "Alpha Skill::answer_prompt" in bundle.answer_prompts[0]
@@ -225,7 +226,8 @@ async def test_generate_answer_injects_skill_prompts_and_returns_active_skills(m
             priority=100,
             status="active",
             prompt_keys=["system_prompt", "answer_prompt"],
-            binding_config={},
+            binding_config={"_provenance": {"install_task_id": 12}},
+            provenance_install_task_id=12,
             created_at=datetime.now(timezone.utc),
             updated_at=datetime.now(timezone.utc),
         )
@@ -258,6 +260,7 @@ async def test_generate_answer_injects_skill_prompts_and_returns_active_skills(m
     assert "Use citations." in system_message
     assert "Lead with the answer." in system_message
     assert response.active_skills[0].skill_slug == "rag-citation-guide"
+    assert response.active_skills[0].provenance_install_task_id == 12
 
 
 @pytest.mark.asyncio
@@ -339,29 +342,40 @@ async def test_bind_skill_writes_audit_log(monkeypatch):
                 priority=100,
                 status="active",
                 prompt_keys=["system_prompt"],
-                binding_config={},
+                binding_config={"_provenance": {"install_task_id": 33}},
+                provenance_install_task_id=33,
                 created_at=datetime.now(timezone.utc),
                 updated_at=datetime.now(timezone.utc),
             )
         ]
 
+    async def fake_get_provenance_task(_db, *, install_task_id, skill_slug):
+        _ = skill_slug
+        return SimpleNamespace(id=install_task_id)
+
     monkeypatch.setattr(skill_service, "_get_robot_for_binding", fake_get_robot)
     monkeypatch.setattr(skill_service, "get_skill_detail", fake_get_skill_detail)
     monkeypatch.setattr(skill_service, "get_robot_skill_bindings", fake_get_bindings)
+    monkeypatch.setattr(skill_service, "_get_binding_provenance_task", fake_get_provenance_task)
 
     await skill_service.bind_skill_to_robot(
         db=db,
         robot_id=1,
         skill_slug="rag-citation-guide",
-        payload=SimpleNamespace(priority=None, status="active", binding_config={}),
+        payload=SimpleNamespace(priority=None, status="active", binding_config={}, install_task_id=33),
         current_user=SimpleNamespace(id=1, username="alice", role="user"),
     )
 
     assert any(isinstance(item, RobotSkillBinding) for item in db.added)
     assert any(
-        isinstance(item, SkillAuditLog) and item.action == "skill.bind" and item.status == "success"
+        isinstance(item, SkillAuditLog)
+        and item.action == "skill.bind"
+        and item.status == "success"
+        and item.install_task_id == 33
         for item in db.added
     )
+    persisted_binding = next(item for item in db.added if isinstance(item, RobotSkillBinding))
+    assert persisted_binding.binding_config["_provenance"]["install_task_id"] == 33
 
 
 @pytest.mark.asyncio
@@ -407,22 +421,28 @@ async def test_update_and_unbind_write_audit_logs(monkeypatch):
                 priority=50,
                 status="disabled",
                 prompt_keys=["system_prompt"],
-                binding_config={},
+                binding_config={"_provenance": {"install_task_id": 44}},
+                provenance_install_task_id=44,
                 created_at=datetime.now(timezone.utc),
                 updated_at=datetime.now(timezone.utc),
             )
         ]
 
+    async def fake_get_provenance_task(_db, *, install_task_id, skill_slug):
+        _ = skill_slug
+        return SimpleNamespace(id=install_task_id)
+
     monkeypatch.setattr(skill_service, "_get_robot_for_binding", fake_get_robot)
     monkeypatch.setattr(skill_service, "get_skill_detail", fake_get_skill_detail)
     monkeypatch.setattr(skill_service, "get_robot_skill_bindings", fake_get_bindings)
+    monkeypatch.setattr(skill_service, "_get_binding_provenance_task", fake_get_provenance_task)
 
     update_db = PersistQueueDB([FakeScalarResult(binding)])
     await skill_service.update_robot_skill_binding(
         db=update_db,
         robot_id=1,
         skill_slug="rag-citation-guide",
-        payload=SimpleNamespace(priority=50, status="disabled", binding_config={}),
+        payload=SimpleNamespace(priority=50, status="disabled", binding_config={}, install_task_id=44),
         current_user=SimpleNamespace(id=1, username="alice", role="user"),
     )
 
@@ -436,7 +456,10 @@ async def test_update_and_unbind_write_audit_logs(monkeypatch):
     )
 
     assert any(
-        isinstance(item, SkillAuditLog) and item.action == "skill.update_binding" and item.status == "success"
+        isinstance(item, SkillAuditLog)
+        and item.action == "skill.update_binding"
+        and item.status == "success"
+        and item.install_task_id == 44
         for item in update_db.added
     )
     assert any(

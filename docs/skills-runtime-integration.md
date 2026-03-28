@@ -8,6 +8,7 @@ Completed outcomes:
 - Bound skill prompts now enter the real RAG runtime before retrieval and answer generation.
 - Robot edit pages now support binding, reprioritizing, disabling, and unbinding skills.
 - Active robot skills are visible in the chat sidebar and robot edit page.
+- Active robot skills can now expose install provenance metadata when a binding came from a controlled install task.
 - Skill binding now validates manifest constraints such as `allowed_robot_modes`.
 - Regression tests now cover runtime prompt composition, retrieval guidance, and incompatible binding rejection.
 - Remote install remains disabled in this phase and stays behind `ENABLE_REMOTE_SKILL_INSTALL=false`.
@@ -22,7 +23,7 @@ Completed outcomes:
    - `answer_prompt`
 4. Retrieval guidance is appended to the effective retrieval query before hybrid search.
 5. System and answer guidance are merged into the final chat system prompt before LLM generation.
-6. Active skill metadata is returned to the frontend and shown alongside the current robot.
+6. Active skill metadata, including optional provenance, is returned to the frontend and shown alongside the current robot.
 
 ## Frontend Coverage
 
@@ -35,6 +36,7 @@ Current robot-facing UI now includes:
   - Remove a binding
 - `/chat`
   - Show active skills for the currently selected robot
+  - Show provenance badges when a skill binding was linked to an install task
 
 ## Validation Rules
 
@@ -62,3 +64,4 @@ Later operator-facing phases are documented in:
 - [skills-governance-hardening.md](./skills-governance-hardening.md)
 - [skills-admin-console.md](./skills-admin-console.md)
 - [skills-remote-install-execution.md](./skills-remote-install-execution.md)
+- [skills-provenance.md](./skills-provenance.md)

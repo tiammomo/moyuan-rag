@@ -203,6 +203,7 @@ class SkillService:
     ) -> SkillRobotBindingDetail:
         manifest_path = self._to_absolute_path(record.get("manifest_path")) if record else None
         manifest = self._read_manifest(manifest_path)
+        binding_config = binding.binding_config or {}
         return SkillRobotBindingDetail(
             robot_id=binding.robot_id,
             robot_name=robot_name,
@@ -214,10 +215,41 @@ class SkillService:
             priority=binding.priority,
             status=binding.status,
             prompt_keys=self._build_prompt_keys(manifest),
-            binding_config=binding.binding_config or {},
+            binding_config=binding_config,
+            provenance_install_task_id=self._extract_install_task_id(binding_config),
             created_at=binding.created_at,
             updated_at=binding.updated_at,
         )
+
+    def _extract_install_task_id(self, binding_config: dict[str, Any] | None) -> int | None:
+        if not isinstance(binding_config, dict):
+            return None
+        provenance = binding_config.get("_provenance")
+        if not isinstance(provenance, dict):
+            return None
+        raw_task_id = provenance.get("install_task_id")
+        if isinstance(raw_task_id, int) and raw_task_id > 0:
+            return raw_task_id
+        if isinstance(raw_task_id, str) and raw_task_id.isdigit():
+            return int(raw_task_id)
+        return None
+
+    def _apply_install_task_provenance(
+        self,
+        *,
+        binding_config: dict[str, Any] | None,
+        install_task_id: int | None,
+    ) -> dict[str, Any]:
+        merged = dict(binding_config or {})
+        if install_task_id is None:
+            return merged
+
+        provenance = merged.get("_provenance")
+        if not isinstance(provenance, dict):
+            provenance = {}
+        provenance["install_task_id"] = install_task_id
+        merged["_provenance"] = provenance
+        return merged
 
     async def _get_bound_counts(self, db: AsyncSession) -> dict[str, int]:
         if not hasattr(db, "execute") or db.execute is None:
@@ -835,6 +867,32 @@ class SkillService:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Skill install task not found")
         return task
 
+    async def _get_binding_provenance_task(
+        self,
+        db: AsyncSession,
+        *,
+        install_task_id: int | None,
+        skill_slug: str,
+    ) -> SkillInstallTask | None:
+        if install_task_id is None:
+            return None
+
+        task = await self._get_install_task_record(db, install_task_id)
+        if task.status != "installed":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Install task #{install_task_id} is not completed successfully.",
+            )
+        if task.installed_skill_slug and task.installed_skill_slug != skill_slug:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    f"Install task #{install_task_id} installed skill "
+                    f"{task.installed_skill_slug}, not {skill_slug}."
+                ),
+            )
+        return task
+
     async def get_install_task(self, db: AsyncSession, task_id: int) -> SkillInstallTaskInfo:
         task = await self._get_install_task_record(db, task_id)
         return SkillInstallTaskInfo.model_validate(task)
@@ -1342,10 +1400,21 @@ class SkillService:
         current_user: User,
     ) -> SkillRobotBindingDetail:
         detail: SkillDetail | None = None
+        provenance_task: SkillInstallTask | None = None
+        requested_install_task_id = getattr(payload, "install_task_id", None)
         try:
             robot = await self._get_robot_for_binding(db, robot_id, current_user)
             detail = await self.get_skill_detail(db, skill_slug)
             self._validate_skill_constraints(robot, detail)
+            provenance_task = await self._get_binding_provenance_task(
+                db,
+                install_task_id=requested_install_task_id,
+                skill_slug=skill_slug,
+            )
+            binding_config = self._apply_install_task_provenance(
+                binding_config=payload.binding_config,
+                install_task_id=getattr(provenance_task, "id", None),
+            )
 
             result = await db.execute(
                 select(RobotSkillBinding).where(
@@ -1364,14 +1433,14 @@ class SkillService:
                     robot_id=robot_id,
                     skill_slug=skill_slug,
                     skill_version=detail.version,
-                    binding_config=payload.binding_config,
+                    binding_config=binding_config,
                     priority=next_priority,
                     status=payload.status,
                 )
                 db.add(binding)
             else:
                 binding.skill_version = detail.version
-                binding.binding_config = payload.binding_config
+                binding.binding_config = binding_config
                 binding.priority = payload.priority or binding.priority
                 binding.status = payload.status
 
@@ -1388,7 +1457,12 @@ class SkillService:
                 robot_id=robot_id,
                 skill_slug=skill_slug,
                 skill_version=bound.skill_version,
-                details={"priority": bound.priority, "status": bound.status},
+                install_task_id=getattr(provenance_task, "id", None),
+                details={
+                    "priority": bound.priority,
+                    "status": bound.status,
+                    "provenance_install_task_id": bound.provenance_install_task_id,
+                },
             )
             return bound
         except Exception as exc:
@@ -1404,7 +1478,11 @@ class SkillService:
                 robot_id=robot_id,
                 skill_slug=skill_slug,
                 skill_version=detail.version if detail else None,
-                details={"requested_status": payload.status},
+                install_task_id=getattr(provenance_task, "id", None) or requested_install_task_id,
+                details={
+                    "requested_status": payload.status,
+                    "requested_install_task_id": requested_install_task_id,
+                },
             )
             raise
 
@@ -1417,11 +1495,18 @@ class SkillService:
         current_user: User,
     ) -> SkillRobotBindingDetail:
         detail: SkillDetail | None = None
+        provenance_task: SkillInstallTask | None = None
+        requested_install_task_id = getattr(payload, "install_task_id", None)
         try:
             robot = await self._get_robot_for_binding(db, robot_id, current_user)
             detail = await self.get_skill_detail(db, skill_slug)
             if payload.status != "disabled":
                 self._validate_skill_constraints(robot, detail)
+            provenance_task = await self._get_binding_provenance_task(
+                db,
+                install_task_id=requested_install_task_id,
+                skill_slug=skill_slug,
+            )
             result = await db.execute(
                 select(RobotSkillBinding).where(
                     RobotSkillBinding.robot_id == robot_id,
@@ -1438,6 +1523,10 @@ class SkillService:
                 binding.status = payload.status
             if payload.binding_config is not None:
                 binding.binding_config = payload.binding_config
+            binding.binding_config = self._apply_install_task_provenance(
+                binding_config=binding.binding_config,
+                install_task_id=getattr(provenance_task, "id", None),
+            )
 
             await db.commit()
             bindings = await self.get_robot_skill_bindings(db, robot_id, current_user)
@@ -1452,7 +1541,12 @@ class SkillService:
                 robot_id=robot_id,
                 skill_slug=skill_slug,
                 skill_version=updated.skill_version,
-                details={"priority": updated.priority, "status": updated.status},
+                install_task_id=getattr(provenance_task, "id", None),
+                details={
+                    "priority": updated.priority,
+                    "status": updated.status,
+                    "provenance_install_task_id": updated.provenance_install_task_id,
+                },
             )
             return updated
         except Exception as exc:
@@ -1468,7 +1562,12 @@ class SkillService:
                 robot_id=robot_id,
                 skill_slug=skill_slug,
                 skill_version=detail.version if detail else None,
-                details={"requested_priority": payload.priority, "requested_status": payload.status},
+                install_task_id=getattr(provenance_task, "id", None) or requested_install_task_id,
+                details={
+                    "requested_priority": payload.priority,
+                    "requested_status": payload.status,
+                    "requested_install_task_id": requested_install_task_id,
+                },
             )
             raise
 

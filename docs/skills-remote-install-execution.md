@@ -13,6 +13,7 @@ Completed outcomes:
 - Remote install reuses the same extraction and registry flow as local zip installation, so success and failure behavior stay consistent.
 - Operators can now launch a controlled remote install directly from `/admin/skills`, then inspect a single task and use retry / cancel through the same console.
 - Successful install tasks now hand off directly into review, robot binding, and chat validation through links and task-scoped audit context inside the same drawer.
+- Provenance-linked robot binding actions can now be written back into the same install timeline through `install_task_id`.
 
 ## Runtime Flow
 
@@ -78,3 +79,4 @@ This slice was validated with:
 - [skills-governance-hardening.md](./skills-governance-hardening.md)
 - [skills-remote-install-operator-ui.md](./skills-remote-install-operator-ui.md)
 - [skills-install-handoff.md](./skills-install-handoff.md)
+- [skills-provenance.md](./skills-provenance.md)

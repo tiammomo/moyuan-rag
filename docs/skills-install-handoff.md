@@ -10,6 +10,7 @@ Completed outcomes:
 - Task drawers now include a post-install guidance block that makes the expected sequence explicit: review, bind, then validate in chat.
 - Task drawers now show a task-scoped audit timeline by filtering audit records with `install_task_id`, so operators can inspect one install trail without manually cross-filtering the global audit list.
 - Task drawers now surface task-adjacent robot binding context when the installed skill is already present in the registry and bound to robots.
+- Robot edit entry points can now preserve the originating `install_task_id`, so later bindings and updates stay connected to the original install event.
 
 ## Operator Workflow
 
@@ -18,8 +19,9 @@ Recommended usage after a successful install:
 2. Confirm the package source, checksum, signature state, and extracted registry path.
 3. Review the installed skill detail page to inspect prompts and documentation.
 4. Open the relevant robot edit page and decide whether the new skill should be bound immediately.
-5. Open `/chat` and run a validation conversation to confirm the runtime prompt stack behaves as expected.
-6. Use the related audit events card when you need the install-specific timeline or raw audit JSON.
+5. If you bind or update the skill from that path, keep the carried `install_task_id` so provenance remains visible in audit logs and runtime badges.
+6. Open `/chat` and run a validation conversation to confirm the runtime prompt stack behaves as expected.
+7. Use the related audit events card when you need the install-specific timeline or raw audit JSON.
 
 ## Why This Matters
 
@@ -42,3 +44,4 @@ This slice was validated with:
 - [skills-admin-console.md](./skills-admin-console.md)
 - [skills-remote-install-execution.md](./skills-remote-install-execution.md)
 - [skills-remote-install-operator-ui.md](./skills-remote-install-operator-ui.md)
+- [skills-provenance.md](./skills-provenance.md)

@@ -322,6 +322,13 @@ export default function AdminSkillsPage() {
   const selectedTaskBindings = useMemo(() => selectedTaskSkill?.bound_robots ?? [], [selectedTaskSkill]);
   const selectedTaskRobotLinks = useMemo(() => selectedTaskBindings.slice(0, 3), [selectedTaskBindings]);
   const selectedTaskHandoffReady = Boolean(selectedTask?.status === 'installed' && selectedTaskSkillSlug);
+  const selectedTaskProvenanceId = selectedTaskHandoffReady ? selectedTask?.id : undefined;
+  const buildRobotEditHref = (robotId: number, skillSlug?: string) => {
+    if (!selectedTaskProvenanceId || !skillSlug || skillSlug !== selectedTaskSkillSlug) {
+      return `/robots/${robotId}/edit-test`;
+    }
+    return `/robots/${robotId}/edit-test?install_task_id=${selectedTaskProvenanceId}&skill_slug=${skillSlug}`;
+  };
 
   const rollbackImpact = useMemo(() => {
     if (!selectedSkill || !rollbackVariant) {
@@ -476,6 +483,7 @@ export default function AdminSkillsPage() {
         priority: binding.priority,
         status: binding.status,
         binding_config: binding.binding_config,
+        install_task_id: binding.skill_slug === selectedTaskSkillSlug ? selectedTaskProvenanceId : undefined,
       });
       toast.success(`已将机器人 ${binding.robot_name || binding.robot_id} 回绑到当前版本`);
       await refreshAll();
@@ -498,6 +506,7 @@ export default function AdminSkillsPage() {
           priority: binding.priority,
           status: binding.status,
           binding_config: binding.binding_config,
+          install_task_id: binding.skill_slug === selectedTaskSkillSlug ? selectedTaskProvenanceId : undefined,
         });
       }
       toast.success(`已完成 ${driftedBindings.length} 条漂移绑定回绑`);
@@ -1081,7 +1090,7 @@ export default function AdminSkillsPage() {
                           <span>创建于 {formatDateTime(binding.created_at)}</span>
                           <span>更新于 {formatDateTime(binding.updated_at)}</span>
                           <Link
-                            href={`/robots/${binding.robot_id}/edit-test`}
+                            href={buildRobotEditHref(binding.robot_id, binding.skill_slug)}
                             className="inline-flex items-center text-primary-600 hover:text-primary-700 dark:text-primary-400"
                           >
                             前往机器人编辑
@@ -1272,7 +1281,7 @@ export default function AdminSkillsPage() {
                                 当前绑定版本 {binding.skill_version}，状态 {binding.status}，优先级 {binding.priority}
                               </p>
                             </div>
-                            <Link href={`/robots/${binding.robot_id}/edit-test`}>
+                            <Link href={buildRobotEditHref(binding.robot_id, binding.skill_slug)}>
                               <Button variant="outline" size="sm">
                                 打开机器人编辑页
                                 <ExternalLink className="ml-2 h-4 w-4" />

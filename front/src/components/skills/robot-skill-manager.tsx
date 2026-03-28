@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Loader2, Plug, RefreshCcw, Unplug } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -27,6 +28,7 @@ function buildDrafts(bindings: SkillBinding[]): BindingDraftMap {
 }
 
 export function RobotSkillManager({ robotId }: RobotSkillManagerProps) {
+  const searchParams = useSearchParams();
   const [installedSkills, setInstalledSkills] = useState<SkillListItem[]>([]);
   const [bindings, setBindings] = useState<SkillBinding[]>([]);
   const [drafts, setDrafts] = useState<BindingDraftMap>({});
@@ -60,6 +62,17 @@ export function RobotSkillManager({ robotId }: RobotSkillManagerProps) {
     () => bindings.filter((binding) => binding.status === 'active'),
     [bindings],
   );
+  const provenanceInstallTaskId = useMemo(() => {
+    const rawTaskId = searchParams.get('install_task_id');
+    if (!rawTaskId) {
+      return undefined;
+    }
+    const parsedTaskId = Number.parseInt(rawTaskId, 10);
+    return Number.isInteger(parsedTaskId) && parsedTaskId > 0 ? parsedTaskId : undefined;
+  }, [searchParams]);
+  const provenanceSkillSlug = useMemo(() => searchParams.get('skill_slug') || '', [searchParams]);
+  const shouldAttachProvenance = (slug: string) =>
+    Boolean(provenanceInstallTaskId && (!provenanceSkillSlug || provenanceSkillSlug === slug));
   const availableSkills = useMemo(
     () => installedSkills.filter((skill) => !boundSlugSet.has(skill.slug)),
     [boundSlugSet, installedSkills],
@@ -78,7 +91,9 @@ export function RobotSkillManager({ robotId }: RobotSkillManagerProps) {
   const handleBind = async (slug: string) => {
     setBusySlug(slug);
     try {
-      await skillApi.bindToRobot(robotId, slug, {});
+      await skillApi.bindToRobot(robotId, slug, {
+        install_task_id: shouldAttachProvenance(slug) ? provenanceInstallTaskId : undefined,
+      });
       await loadSkillState();
       toast.success('技能已绑定到机器人');
     } catch (error: any) {
@@ -97,6 +112,7 @@ export function RobotSkillManager({ robotId }: RobotSkillManagerProps) {
     const payload: SkillBindingUpdate = {
       priority: Number.isFinite(draft.priority) ? draft.priority : 100,
       status: draft.status,
+      install_task_id: shouldAttachProvenance(slug) ? provenanceInstallTaskId : undefined,
     };
 
     setBusySlug(slug);
@@ -138,6 +154,11 @@ export function RobotSkillManager({ robotId }: RobotSkillManagerProps) {
           <p className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-200">当前生效</p>
           <ActiveSkillBadges skills={activeBindings} />
         </div>
+        {provenanceInstallTaskId ? (
+          <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-xs leading-6 text-blue-800 dark:border-blue-900/40 dark:bg-blue-900/20 dark:text-blue-100">
+            当前从安装任务 #{provenanceInstallTaskId} 进入。绑定或更新匹配的 skill 时，会自动记录这次安装来源。
+          </div>
+        ) : null}
       </CardHeader>
       <CardContent className="space-y-6">
         <section className="space-y-3">
@@ -178,6 +199,11 @@ export function RobotSkillManager({ robotId }: RobotSkillManagerProps) {
                             {binding.category}
                           </span>
                         )}
+                        {binding.provenance_install_task_id ? (
+                          <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300">
+                            安装任务 #{binding.provenance_install_task_id}
+                          </span>
+                        ) : null}
                       </div>
                       {binding.skill_description && (
                         <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">{binding.skill_description}</p>
@@ -287,6 +313,11 @@ export function RobotSkillManager({ robotId }: RobotSkillManagerProps) {
                   {skill.description && (
                     <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">{skill.description}</p>
                   )}
+                  {shouldAttachProvenance(skill.slug) ? (
+                    <p className="mt-2 text-xs text-emerald-700 dark:text-emerald-300">
+                      绑定后会关联安装任务 #{provenanceInstallTaskId}
+                    </p>
+                  ) : null}
                 </div>
                 <Button size="sm" onClick={() => void handleBind(skill.slug)} disabled={busySlug === skill.slug}>
                   {busySlug === skill.slug ? (

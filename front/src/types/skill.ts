@@ -35,6 +35,7 @@ export interface SkillBinding {
   status: string;
   prompt_keys: string[];
   binding_config: Record<string, unknown>;
+  provenance_install_task_id?: number;
   created_at: string;
   updated_at: string;
 }
@@ -72,12 +73,14 @@ export interface SkillBindingCreate {
   priority?: number;
   status?: string;
   binding_config?: Record<string, unknown>;
+  install_task_id?: number;
 }
 
 export interface SkillBindingUpdate {
   priority?: number;
   status?: string;
   binding_config?: Record<string, unknown>;
+  install_task_id?: number;
 }
 
 export interface SkillInstalledVariant {

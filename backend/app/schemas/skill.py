@@ -47,6 +47,7 @@ class SkillRobotBindingDetail(BaseModel):
     status: str
     prompt_keys: List[str] = Field(default_factory=list)
     binding_config: Dict[str, Any] = Field(default_factory=dict)
+    provenance_install_task_id: Optional[int] = None
     created_at: datetime
     updated_at: datetime
 
@@ -96,12 +97,14 @@ class SkillBindingCreate(BaseModel):
     priority: Optional[int] = Field(default=None, ge=1, le=9999)
     status: str = Field(default="active")
     binding_config: Dict[str, Any] = Field(default_factory=dict)
+    install_task_id: Optional[int] = Field(default=None, ge=1)
 
 
 class SkillBindingUpdate(BaseModel):
     priority: Optional[int] = Field(default=None, ge=1, le=9999)
     status: Optional[str] = None
     binding_config: Optional[Dict[str, Any]] = None
+    install_task_id: Optional[int] = Field(default=None, ge=1)
 
 
 class RuntimeSkillPromptBundle(BaseModel):
