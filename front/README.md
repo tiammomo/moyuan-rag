@@ -314,6 +314,14 @@ npm run dev
 # 访问 http://localhost:33004
 ```
 
+类型检查建议直接运行：
+
+```bash
+npm run type-check
+```
+
+这个命令现在会在 `.next/types` 缺失时自动先完成一次 Next 类型自举，并在真正的 `tsc` 检查里关闭增量缓存，避免首跑或构建缓存切换时的偶发失败。
+
 ### 生产构建
 
 ```bash

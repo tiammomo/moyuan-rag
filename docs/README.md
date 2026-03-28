@@ -61,7 +61,7 @@
 
 ## 当前活动规划
 
-- [frontend-typecheck-stability-plan.md](./frontend-typecheck-stability-plan.md)
+- [frontend-eslint-bootstrap-plan.md](./frontend-eslint-bootstrap-plan.md)
 - [outreach-assets-plan.md](./outreach-assets-plan.md)
 - [teaching-examples-plan.md](./teaching-examples-plan.md)
 

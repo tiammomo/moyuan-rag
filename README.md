@@ -276,6 +276,8 @@ npm run lint
 npm run type-check
 ```
 
+`npm run type-check` 现在会在首次运行缺少 `.next/types` 时自动完成自举，并关闭这次检查的增量缓存，避免 App Router 生成类型文件尚未就绪时出现偶发失败。
+
 ### 本地集成链路
 
 推荐在基础设施或 worker 变更后运行：
@@ -338,7 +340,8 @@ python backend/scripts/local_integration.py --start-infra
 - [docs/skills-validation-regression.md](docs/skills-validation-regression.md)
 - [docs/skills-validation-ops.md](docs/skills-validation-ops.md)
 - [docs/ops/skills-validation/README.md](docs/ops/skills-validation/README.md)
-- [docs/frontend-typecheck-stability-plan.md](docs/frontend-typecheck-stability-plan.md)
+- [docs/frontend-typecheck-stability.md](docs/frontend-typecheck-stability.md)
+- [docs/frontend-eslint-bootstrap-plan.md](docs/frontend-eslint-bootstrap-plan.md)
 
 ## RAG 教学文档
 
