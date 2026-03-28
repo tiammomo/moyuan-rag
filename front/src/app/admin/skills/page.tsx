@@ -141,6 +141,32 @@ function downloadTextFile(filename: string, content: string, mimeType: string) {
   URL.revokeObjectURL(url);
 }
 
+function toHistoryDateSegment(value?: string) {
+  if (!value) {
+    return 'unknown-date';
+  }
+
+  const normalized = value.includes('T') ? value.slice(0, 10) : value;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(normalized)) {
+    return normalized;
+  }
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return 'unknown-date';
+  }
+
+  return parsed.toISOString().slice(0, 10);
+}
+
+function toHistorySlugSegment(value?: string) {
+  if (!value) {
+    return 'unknown-skill';
+  }
+
+  return value.replace(/[^a-zA-Z0-9._-]+/g, '-').replace(/^-+|-+$/g, '') || 'unknown-skill';
+}
+
 function getTaskStatusPalette(status: string): 'success' | 'danger' | 'warning' | 'primary' {
   if (status === 'installed') {
     return 'success';
@@ -545,12 +571,17 @@ export default function AdminSkillsPage() {
     () => (selectedTaskValidationExportPayload ? JSON.stringify(selectedTaskValidationExportPayload, null, 2) : ''),
     [selectedTaskValidationExportPayload],
   );
-  const selectedTaskExportBaseName = useMemo(() => {
+  const selectedTaskHistoryBaseName = useMemo(() => {
     if (!selectedTask) {
       return 'skills-validation-export';
     }
-    return `skills-validation-task-${selectedTask.id}-${selectedTask.installed_skill_slug || 'unknown'}`;
+    const dateSegment = toHistoryDateSegment(selectedTask.created_at);
+    const slugSegment = toHistorySlugSegment(selectedTask.installed_skill_slug);
+    return `${dateSegment}-task-${selectedTask.id}-${slugSegment}`;
   }, [selectedTask]);
+  const selectedTaskHistoryDir = 'docs/ops/skills-validation';
+  const selectedTaskHistoryMarkdownPath = `${selectedTaskHistoryDir}/${selectedTaskHistoryBaseName}.md`;
+  const selectedTaskHistoryJsonPath = `${selectedTaskHistoryDir}/${selectedTaskHistoryBaseName}.json`;
   const buildRobotEditHref = (robotId: number, skillSlug?: string) => {
     if (!selectedTaskProvenanceId || !skillSlug || skillSlug !== selectedTaskSkillSlug) {
       return `/robots/${robotId}/edit-test`;
@@ -1564,7 +1595,7 @@ export default function AdminSkillsPage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => downloadTextFile(`${selectedTaskExportBaseName}.md`, selectedTaskMarkdownExport, 'text/markdown;charset=utf-8')}
+                    onClick={() => downloadTextFile(`${selectedTaskHistoryBaseName}.md`, selectedTaskMarkdownExport, 'text/markdown;charset=utf-8')}
                     disabled={!selectedTaskMarkdownExport}
                   >
                     <Download className="mr-2 h-4 w-4" />
@@ -1573,7 +1604,7 @@ export default function AdminSkillsPage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => downloadTextFile(`${selectedTaskExportBaseName}.json`, selectedTaskJsonExport, 'application/json;charset=utf-8')}
+                    onClick={() => downloadTextFile(`${selectedTaskHistoryBaseName}.json`, selectedTaskJsonExport, 'application/json;charset=utf-8')}
                     disabled={!selectedTaskJsonExport}
                   >
                     <Download className="mr-2 h-4 w-4" />
@@ -1629,6 +1660,58 @@ export default function AdminSkillsPage() {
                     <span>{item}</span>
                   </div>
                 ))}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
+                <div>
+                  <CardTitle className="text-base">历史归档与比对提示</CardTitle>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    建议把导出的验证产物放进固定目录，并按日期、任务号和 skill slug 归档，方便后续做回归对比。
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => void copyTextToClipboard(selectedTaskHistoryMarkdownPath, 'Markdown 归档路径')}
+                  >
+                    <Copy className="mr-2 h-4 w-4" />
+                    复制 Markdown 路径
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => void copyTextToClipboard(selectedTaskHistoryJsonPath, 'JSON 归档路径')}
+                  >
+                    <Copy className="mr-2 h-4 w-4" />
+                    复制 JSON 路径
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+                  <div className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-4 text-sm text-gray-700 dark:border-gray-700 dark:bg-gray-900/40 dark:text-gray-300">
+                    <p className="font-medium text-gray-900 dark:text-white">建议 Markdown 归档路径</p>
+                    <p className="mt-2 break-all font-mono text-xs leading-6">{selectedTaskHistoryMarkdownPath}</p>
+                  </div>
+                  <div className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-4 text-sm text-gray-700 dark:border-gray-700 dark:bg-gray-900/40 dark:text-gray-300">
+                    <p className="font-medium text-gray-900 dark:text-white">建议 JSON 归档路径</p>
+                    <p className="mt-2 break-all font-mono text-xs leading-6">{selectedTaskHistoryJsonPath}</p>
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">历史比对建议</p>
+                  <div className="flex items-start gap-3 rounded-2xl border border-gray-200 px-4 py-3 text-sm leading-6 text-gray-700 dark:border-gray-700 dark:text-gray-300">
+                    <History className="mt-0.5 h-4 w-4 flex-none text-primary-600 dark:text-primary-400" />
+                    <span>先找同一个 skill slug 上一份验证导出，再比较 robot bindings、release review checklist 和最终 verdict。</span>
+                  </div>
+                  <div className="flex items-start gap-3 rounded-2xl border border-gray-200 px-4 py-3 text-sm leading-6 text-gray-700 dark:border-gray-700 dark:text-gray-300">
+                    <GitCompare className="mt-0.5 h-4 w-4 flex-none text-primary-600 dark:text-primary-400" />
+                    <span>如果是版本回归，优先对照历史导出里的 recent audit events、chat summary 和 answer excerpt_or_screenshot。</span>
+                  </div>
+                </div>
               </CardContent>
             </Card>
 

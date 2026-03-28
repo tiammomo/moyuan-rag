@@ -9,6 +9,7 @@ Completed outcomes:
 - Install task drawers now support direct JSON export for structured incident or automation pipelines.
 - The admin console now shows a release-review checklist that ties install verification, robot binding confirmation, chat validation, and final rollout verdict together.
 - Validation evidence documentation now explains how exported artifacts should be attached to release approval and incident review workflows.
+- Validation exports now follow a history-friendly naming pattern so repeated rollouts can be archived and compared.
 
 ## Operator Workflow
 
@@ -34,3 +35,4 @@ Use JSON export when:
 - [skills-validation-evidence.md](./skills-validation-evidence.md)
 - [skills-validation-playbook.md](./skills-validation-playbook.md)
 - [skills-incident-review.md](./skills-incident-review.md)
+- [skills-validation-history.md](./skills-validation-history.md)

@@ -52,12 +52,13 @@
 - [skills-incident-review.md](./skills-incident-review.md)
 - [skills-validation-evidence.md](./skills-validation-evidence.md)
 - [skills-validation-automation.md](./skills-validation-automation.md)
+- [skills-validation-history.md](./skills-validation-history.md)
 
 当前已经支持受控远端 skill 下载、checksum 校验、可选 Ed25519 签名校验，以及 `/admin/skills` 中的远端安装表单、单任务详情、retry / cancel、安装后交接引导和 provenance 追踪。
 
 ## 当前活动规划
 
-- [skills-validation-history-plan.md](./skills-validation-history-plan.md)
+- [skills-validation-regression-plan.md](./skills-validation-regression-plan.md)
 - [outreach-assets-plan.md](./outreach-assets-plan.md)
 - [teaching-examples-plan.md](./teaching-examples-plan.md)
 

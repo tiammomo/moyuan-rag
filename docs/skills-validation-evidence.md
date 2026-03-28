@@ -61,6 +61,7 @@ Recommended convention:
 - local ops notes: `docs/ops/skills-validation/<date>-task-<id>-<skill-slug>.md`
 - release review: paste the same summary or filled template into the release ticket or rollout comment
 - incident review: attach the same install task id and robot ids so the review can be traced back to the exact rollout
+- structured record: keep the JSON export beside the Markdown export with the same basename
 
 Attachment guidance:
 - release approval: attach the Markdown export, then link the matching chat screenshots if reviewers need visual proof
@@ -78,3 +79,4 @@ The important rule is consistency:
 - [skills-incident-review.md](./skills-incident-review.md)
 - [skills-admin-console.md](./skills-admin-console.md)
 - [skills-validation-automation.md](./skills-validation-automation.md)
+- [skills-validation-history.md](./skills-validation-history.md)
