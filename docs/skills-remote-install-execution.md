@@ -12,6 +12,7 @@ Completed outcomes:
 - Install task details now persist download size, content type, checksum verification, signature verification, and extracted install path.
 - Remote install reuses the same extraction and registry flow as local zip installation, so success and failure behavior stay consistent.
 - Operators can now launch a controlled remote install directly from `/admin/skills`, then inspect a single task and use retry / cancel through the same console.
+- Successful install tasks now hand off directly into review, robot binding, and chat validation through links and task-scoped audit context inside the same drawer.
 
 ## Runtime Flow
 
@@ -76,3 +77,4 @@ This slice was validated with:
 - [skills-admin-console.md](./skills-admin-console.md)
 - [skills-governance-hardening.md](./skills-governance-hardening.md)
 - [skills-remote-install-operator-ui.md](./skills-remote-install-operator-ui.md)
+- [skills-install-handoff.md](./skills-install-handoff.md)

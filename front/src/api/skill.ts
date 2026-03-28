@@ -76,6 +76,7 @@ export const skillApi = {
     actor_username?: string;
     skill_slug?: string;
     robot_id?: number;
+    install_task_id?: number;
   }): Promise<SkillAuditLogListResponse> => {
     const response = await apiClient.get<SkillAuditLogListResponse>('/skills/audit-logs', { params });
     return response.data;

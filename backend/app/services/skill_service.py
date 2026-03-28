@@ -850,6 +850,7 @@ class SkillService:
         actor_username: str | None = None,
         skill_slug: str | None = None,
         robot_id: int | None = None,
+        install_task_id: int | None = None,
     ) -> SkillAuditLogListResponse:
         stmt = select(SkillAuditLog).order_by(SkillAuditLog.created_at.desc())
         count_stmt = select(func.count(SkillAuditLog.id))
@@ -869,6 +870,9 @@ class SkillService:
         if robot_id is not None:
             stmt = stmt.where(SkillAuditLog.robot_id == robot_id)
             count_stmt = count_stmt.where(SkillAuditLog.robot_id == robot_id)
+        if install_task_id is not None:
+            stmt = stmt.where(SkillAuditLog.install_task_id == install_task_id)
+            count_stmt = count_stmt.where(SkillAuditLog.install_task_id == install_task_id)
 
         total_result = await db.execute(count_stmt)
         result = await db.execute(stmt.offset(skip).limit(limit))

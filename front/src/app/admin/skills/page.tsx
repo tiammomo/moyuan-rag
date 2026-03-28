@@ -133,6 +133,19 @@ function getTaskStatusPalette(status: string): 'success' | 'danger' | 'warning' 
   return 'primary';
 }
 
+function getAuditStatusPalette(status: string): 'success' | 'danger' | 'warning' | 'primary' {
+  if (status === 'success') {
+    return 'success';
+  }
+  if (status === 'failed' || status === 'rejected') {
+    return 'danger';
+  }
+  if (status === 'pending') {
+    return 'warning';
+  }
+  return 'primary';
+}
+
 function getInstallTaskMeta(task: SkillInstallTask) {
   const details = asRecord(task.details);
   const verification = asRecord(details?.verification);
@@ -261,6 +274,10 @@ export default function AdminSkillsPage() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [operationKey, setOperationKey] = useState<string | null>(null);
   const [selectedTask, setSelectedTask] = useState<SkillInstallTask | null>(null);
+  const [selectedTaskSkill, setSelectedTaskSkill] = useState<SkillDetail | null>(null);
+  const [taskAuditLogs, setTaskAuditLogs] = useState<SkillAuditLog[]>([]);
+  const [taskAuditTotal, setTaskAuditTotal] = useState(0);
+  const [taskDrawerLoading, setTaskDrawerLoading] = useState(false);
   const [selectedLog, setSelectedLog] = useState<SkillAuditLog | null>(null);
   const [rollbackVariant, setRollbackVariant] = useState<SkillInstalledVariant | null>(null);
   const [remoteInstallForm, setRemoteInstallForm] = useState({
@@ -301,6 +318,10 @@ export default function AdminSkillsPage() {
     () => (selectedTask ? getInstallTaskMeta(selectedTask) : null),
     [selectedTask],
   );
+  const selectedTaskSkillSlug = selectedTask?.installed_skill_slug ?? '';
+  const selectedTaskBindings = useMemo(() => selectedTaskSkill?.bound_robots ?? [], [selectedTaskSkill]);
+  const selectedTaskRobotLinks = useMemo(() => selectedTaskBindings.slice(0, 3), [selectedTaskBindings]);
+  const selectedTaskHandoffReady = Boolean(selectedTask?.status === 'installed' && selectedTaskSkillSlug);
 
   const rollbackImpact = useMemo(() => {
     if (!selectedSkill || !rollbackVariant) {
@@ -375,12 +396,38 @@ export default function AdminSkillsPage() {
   };
 
   const loadInstallTaskDetail = async (taskId: number) => {
+    setTaskDrawerLoading(true);
+    setTaskAuditLogs([]);
+    setTaskAuditTotal(0);
+    setSelectedTaskSkill(null);
     try {
       const task = await skillApi.getInstallTaskById(taskId);
       setSelectedTask(task);
+      const [taskAuditResponse, taskSkillDetail] = await Promise.all([
+        skillApi.getAuditLogs({
+          limit: 20,
+          install_task_id: taskId,
+        }),
+        task.installed_skill_slug
+          ? skillApi.getBySlug(task.installed_skill_slug).catch(() => null)
+          : Promise.resolve<SkillDetail | null>(null),
+      ]);
+      setTaskAuditLogs(taskAuditResponse.items);
+      setTaskAuditTotal(taskAuditResponse.total);
+      setSelectedTaskSkill(taskSkillDetail);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : '加载安装任务详情失败');
+    } finally {
+      setTaskDrawerLoading(false);
     }
+  };
+
+  const closeTaskDrawer = () => {
+    setSelectedTask(null);
+    setSelectedTaskSkill(null);
+    setTaskAuditLogs([]);
+    setTaskAuditTotal(0);
+    setTaskDrawerLoading(false);
   };
 
   useEffect(() => {
@@ -467,8 +514,8 @@ export default function AdminSkillsPage() {
     try {
       const response = await skillApi.retryInstallTask(taskId);
       toast.success(response.message);
-      setSelectedTask(response.task);
       await loadConsole(false);
+      await loadInstallTaskDetail(response.task.id);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : '重试远端安装失败');
     } finally {
@@ -481,8 +528,8 @@ export default function AdminSkillsPage() {
     try {
       const response = await skillApi.cancelInstallTask(taskId);
       toast.success(response.message);
-      setSelectedTask(response.task);
       await loadConsole(false);
+      await loadInstallTaskDetail(response.task.id);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : '取消远端安装失败');
     } finally {
@@ -1073,7 +1120,7 @@ export default function AdminSkillsPage() {
         open={selectedTask !== null}
         title={selectedTask ? `安装任务 #${selectedTask.id}` : ''}
         subtitle={selectedTask ? `${selectedTask.installed_skill_slug || selectedTask.package_name || '未识别 skill'} · ${selectedTask.status}` : undefined}
-        onClose={() => setSelectedTask(null)}
+        onClose={closeTaskDrawer}
       >
         {selectedTask ? (
           <>
@@ -1159,6 +1206,149 @@ export default function AdminSkillsPage() {
                 {selectedTask.error_message}
               </div>
             ) : null}
+
+            {selectedTaskHandoffReady ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">安装后交接</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm leading-6 text-blue-900 dark:border-blue-900/40 dark:bg-blue-900/20 dark:text-blue-100">
+                    建议顺序：先检查 skill 详情，再进入机器人编辑页完成绑定，最后到聊天页验证回答效果和引用结果。
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    <Link href={`/skills/${selectedTaskSkillSlug}`}>
+                      <Button variant="outline" size="sm">
+                        查看 skill 详情
+                        <ExternalLink className="ml-2 h-4 w-4" />
+                      </Button>
+                    </Link>
+                    <Link href="/robots">
+                      <Button variant="outline" size="sm">
+                        前往机器人列表
+                        <ExternalLink className="ml-2 h-4 w-4" />
+                      </Button>
+                    </Link>
+                    <Link href="/chat">
+                      <Button variant="secondary" size="sm">
+                        去聊天页验证
+                        <ExternalLink className="ml-2 h-4 w-4" />
+                      </Button>
+                    </Link>
+                  </div>
+
+                  {selectedTaskSkill ? (
+                    <div className="rounded-2xl border border-gray-200 p-4 dark:border-gray-700">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-sm font-semibold text-gray-900 dark:text-white">{selectedTaskSkill.name}</p>
+                        <StatusBadge value={`当前版本 ${selectedTaskSkill.version}`} palette="success" />
+                        <StatusBadge value={`已绑定机器人 ${selectedTaskBindings.length}`} palette="primary" />
+                      </div>
+                      <p className="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-400">
+                        安装记录已落到 registry。接下来可以先确认说明文档和 prompts，再决定是否绑定到现有机器人。
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-100">
+                      已安装，但当前还无法读取 skill 详情。通常是 registry 尚未同步刷新，重新打开任务详情即可再次检查。
+                    </div>
+                  )}
+
+                  {selectedTaskRobotLinks.length > 0 ? (
+                    <div className="space-y-3">
+                      <p className="text-sm font-medium text-gray-900 dark:text-white">相关机器人入口</p>
+                      <div className="space-y-2">
+                        {selectedTaskRobotLinks.map((binding) => (
+                          <div
+                            key={`handoff-${binding.robot_id}-${binding.skill_slug}`}
+                            className="flex flex-col gap-3 rounded-2xl border border-gray-200 p-4 dark:border-gray-700 lg:flex-row lg:items-center lg:justify-between"
+                          >
+                            <div>
+                              <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                                {binding.robot_name || `机器人 #${binding.robot_id}`}
+                              </p>
+                              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                当前绑定版本 {binding.skill_version}，状态 {binding.status}，优先级 {binding.priority}
+                              </p>
+                            </div>
+                            <Link href={`/robots/${binding.robot_id}/edit-test`}>
+                              <Button variant="outline" size="sm">
+                                打开机器人编辑页
+                                <ExternalLink className="ml-2 h-4 w-4" />
+                              </Button>
+                            </Link>
+                          </div>
+                        ))}
+                      </div>
+                      {selectedTaskBindings.length > selectedTaskRobotLinks.length ? (
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                          还有 {selectedTaskBindings.length - selectedTaskRobotLinks.length} 个已绑定机器人，可在 skill 详情页查看完整列表。
+                        </p>
+                      ) : null}
+                    </div>
+                  ) : (
+                    <EmptyState
+                      title="当前还没有机器人绑定这个 skill"
+                      description="建议先从机器人列表进入编辑页完成绑定，再回到聊天页做一次端到端验证。"
+                    />
+                  )}
+                </CardContent>
+              </Card>
+            ) : null}
+
+            <Card>
+              <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <CardTitle className="text-base">相关审计事件</CardTitle>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    这里按 install_task_id 聚合同一任务的审计轨迹，方便直接串起下载、校验、安装和人工操作。
+                  </p>
+                </div>
+                <StatusBadge value={`${taskAuditTotal} 条`} palette="primary" />
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {taskDrawerLoading ? (
+                  <p className="text-sm text-gray-500 dark:text-gray-400">正在加载关联审计事件...</p>
+                ) : taskAuditLogs.length === 0 ? (
+                  <EmptyState title="当前任务没有关联审计事件" description="如果这是刚刚创建的任务，刷新详情后会看到最新的任务时间线。" />
+                ) : (
+                  taskAuditLogs.map((log) => (
+                    <button
+                      type="button"
+                      key={log.id}
+                      onClick={() => setSelectedLog(log)}
+                      className="w-full rounded-2xl border border-gray-200 p-4 text-left transition hover:border-primary-300 dark:border-gray-700 dark:hover:border-primary-700"
+                    >
+                      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                        <div className="space-y-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="text-sm font-semibold text-gray-900 dark:text-white">{log.action}</p>
+                            <StatusBadge value={log.status} palette={getAuditStatusPalette(log.status)} />
+                            {log.skill_version ? <StatusBadge value={`版本 ${log.skill_version}`} /> : null}
+                          </div>
+                          {log.message ? (
+                            <p className="text-sm leading-6 text-gray-600 dark:text-gray-400">{log.message}</p>
+                          ) : (
+                            <p className="text-sm text-gray-500 dark:text-gray-400">点击查看完整审计 JSON。</p>
+                          )}
+                          <div className="flex flex-wrap gap-3 text-xs text-gray-500 dark:text-gray-400">
+                            <span>时间 {formatDateTime(log.created_at)}</span>
+                            <span>操作人 {log.actor_username || '未知'}</span>
+                            <span>目标 {log.target_type}</span>
+                            {log.robot_id ? <span>robot #{log.robot_id}</span> : null}
+                          </div>
+                        </div>
+                        <span className="inline-flex items-center text-sm font-medium text-primary-600 dark:text-primary-400">
+                          查看详情
+                          <ChevronRight className="ml-1 h-4 w-4" />
+                        </span>
+                      </div>
+                    </button>
+                  ))
+                )}
+              </CardContent>
+            </Card>
 
             <div className="flex flex-wrap justify-end gap-2">
               {selectedTask.source_type === 'remote' && retryableTaskStatuses.has(selectedTask.status) ? (

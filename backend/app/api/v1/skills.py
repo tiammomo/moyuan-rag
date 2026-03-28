@@ -139,6 +139,7 @@ async def list_audit_logs(
     actor_username: str | None = Query(default=None),
     skill_slug: str | None = Query(default=None),
     robot_id: int | None = Query(default=None),
+    install_task_id: int | None = Query(default=None),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
@@ -152,6 +153,7 @@ async def list_audit_logs(
         actor_username=actor_username,
         skill_slug=skill_slug,
         robot_id=robot_id,
+        install_task_id=install_task_id,
     )
 
 

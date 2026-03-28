@@ -626,6 +626,7 @@ async def test_list_audit_logs_applies_filters_to_query():
         actor_username="admin",
         skill_slug="demo-skill",
         robot_id=7,
+        install_task_id=11,
     )
 
     assert response.total == 1
@@ -636,3 +637,4 @@ async def test_list_audit_logs_applies_filters_to_query():
     assert "rag_skill_audit_log.actor_username" in combined_sql
     assert "rag_skill_audit_log.skill_slug" in combined_sql
     assert "rag_skill_audit_log.robot_id" in combined_sql
+    assert "rag_skill_audit_log.install_task_id" in combined_sql

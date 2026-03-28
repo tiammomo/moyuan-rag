@@ -13,6 +13,8 @@ Completed outcomes:
 - Install task drawers can reload a single task via `GET /api/v1/skills/install-tasks/{task_id}` without refreshing the whole console.
 - Remote install tasks now expose safe operator actions for retry and cancel directly in the drawer.
 - Once `ENABLE_REMOTE_SKILL_INSTALL=true`, the drawer also shows persisted download and verification metadata for successful or rejected remote packages.
+- Successful install task drawers now include quick links into skill review, robot edit entry points, and chat validation.
+- Successful install task drawers now include a task-scoped audit timeline so operators can review one install trail in place.
 - Installed skill variants are compared side by side with the current registry version and pinned robot bindings.
 - Operators can rebind drifted robot bindings back to the current skill version from the console.
 - Rollback remains controlled, but the console now includes a rollback preparation workflow so teams can review impact before changing registry state.
@@ -25,6 +27,8 @@ The admin console now includes:
 - install task filters and task detail drawer
 - remote install task retry and cancel buttons when the current task status allows it
 - verification badges and download metadata on task cards, so operators do not need raw JSON for the first pass
+- handoff guidance for review -> bind -> validate after a successful install
+- related audit events inside the install task drawer
 - audit log filters and audit detail drawer
 - installed variant comparison cards
 - robot binding drift panel with one-click rebind to the current version
@@ -37,11 +41,12 @@ Recommended usage:
 2. Filter install tasks or audit logs to narrow the incident scope.
 3. Use the remote install form to submit a controlled package URL when the environment allowlist and feature flag are ready.
 4. Inspect task badges to confirm host, package size, checksum, and signature state without opening raw JSON.
-5. Open a single install task to inspect full verification details, retry / cancel affordances, and the raw task JSON when needed.
-6. Inspect raw audit JSON in the detail drawer when you need the full action trail.
-7. Select the affected skill in the version comparison panel.
-8. Review which robots are still pinned to a historical version.
-9. Rebind drifted robots to the current registry version, or open the rollback preparation modal if a controlled rollback is needed.
+5. Open a single install task to inspect full verification details, retry / cancel affordances, task-scoped audit events, and the raw task JSON when needed.
+6. Use the handoff block to jump into skill review, robot editing, and chat validation.
+7. Inspect raw audit JSON in the detail drawer when you need the full action trail.
+8. Select the affected skill in the version comparison panel.
+9. Review which robots are still pinned to a historical version.
+10. Rebind drifted robots to the current registry version, or open the rollback preparation modal if a controlled rollback is needed.
 
 ## Validation
 
@@ -58,3 +63,4 @@ This slice was validated with:
 - [skills-remote-install-security.md](./skills-remote-install-security.md)
 - [skills-remote-install-execution.md](./skills-remote-install-execution.md)
 - [skills-remote-install-operator-ui.md](./skills-remote-install-operator-ui.md)
+- [skills-install-handoff.md](./skills-install-handoff.md)
