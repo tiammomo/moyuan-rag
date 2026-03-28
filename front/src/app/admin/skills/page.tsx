@@ -7,6 +7,7 @@ import {
   ArrowRightLeft,
   ChevronRight,
   Copy,
+  Download,
   ExternalLink,
   FileJson,
   Filter,
@@ -128,6 +129,16 @@ async function copyTextToClipboard(text: string, label: string) {
   } catch (error) {
     toast.error(`${label}复制失败`);
   }
+}
+
+function downloadTextFile(filename: string, content: string, mimeType: string) {
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.click();
+  URL.revokeObjectURL(url);
 }
 
 function getTaskStatusPalette(status: string): 'success' | 'danger' | 'warning' | 'primary' {
@@ -418,6 +429,127 @@ export default function AdminSkillsPage() {
       '- result: pending',
       '- next_action:',
     ].join('\n');
+  }, [selectedTask]);
+  const selectedTaskReleaseChecklistItems = useMemo(() => {
+    if (!selectedTask) {
+      return [];
+    }
+
+    return [
+      `Confirm install task #${selectedTask.id} completed with the expected checksum and signature result.`,
+      `Confirm the intended robot binding carries provenance task #${selectedTask.id} before rollout approval.`,
+      'Run retrieval, response-shape, and boundary prompts in /chat and compare the result with the installed prompts.',
+      'Record the final rollout verdict and attach the exported markdown or JSON artifact to the release review or incident note.',
+    ];
+  }, [selectedTask]);
+  const selectedTaskReleaseChecklist = useMemo(() => {
+    if (!selectedTask) {
+      return '';
+    }
+
+    return [
+      '# Skills Release Review Checklist',
+      '',
+      `- install_task_id: ${selectedTask.id}`,
+      `- skill: ${(selectedTask.installed_skill_slug || 'unknown')}@${selectedTask.installed_skill_version || 'unknown'}`,
+      '',
+      ...selectedTaskReleaseChecklistItems.map((item) => `- [ ] ${item}`),
+    ].join('\n');
+  }, [selectedTask, selectedTaskReleaseChecklistItems]);
+  const selectedTaskValidationExportPayload = useMemo(() => {
+    if (!selectedTask) {
+      return null;
+    }
+
+    return {
+      install_task_id: selectedTask.id,
+      skill_slug: selectedTask.installed_skill_slug || 'unknown',
+      skill_version: selectedTask.installed_skill_version || 'unknown',
+      task_status: selectedTask.status,
+      source_type: selectedTask.source_type,
+      requested_by: selectedTask.requested_by_username || 'unknown',
+      host: selectedTaskMeta?.host || 'unknown',
+      checksum: {
+        expected: selectedTaskMeta?.checksumExpected || null,
+        actual: selectedTaskMeta?.checksumActual || null,
+        verified: selectedTaskMeta?.checksumVerified ?? null,
+      },
+      signature: {
+        algorithm: selectedTaskMeta?.signatureAlgorithm || null,
+        present: selectedTaskMeta?.signaturePresent ?? null,
+        verified: selectedTaskMeta?.signatureVerified ?? null,
+      },
+      registry_path: selectedTaskMeta?.installPath || null,
+      robot_bindings: selectedTaskBindings.map((binding) => ({
+        robot_id: binding.robot_id,
+        robot_name: binding.robot_name || null,
+        skill_version: binding.skill_version,
+        status: binding.status,
+        priority: binding.priority,
+        provenance_install_task_id: binding.provenance_install_task_id ?? null,
+      })),
+      recent_audit_events: taskAuditLogs.slice(0, 5).map((log) => ({
+        id: log.id,
+        action: log.action,
+        status: log.status,
+        actor_username: log.actor_username || null,
+        created_at: log.created_at,
+      })),
+      release_review_checklist: selectedTaskReleaseChecklistItems,
+      recommended_chat_check: `Open /chat, pick the target robot, and confirm active skill badges still point to install task #${selectedTask.id}.`,
+    };
+  }, [selectedTask, selectedTaskBindings, selectedTaskMeta, selectedTaskReleaseChecklistItems, taskAuditLogs]);
+  const selectedTaskMarkdownExport = useMemo(() => {
+    if (!selectedTask) {
+      return '';
+    }
+
+    const bindingLines = selectedTaskBindings.length
+      ? selectedTaskBindings.map((binding) => {
+          const provenance =
+            typeof binding.provenance_install_task_id === 'number'
+              ? `, provenance=#${binding.provenance_install_task_id}`
+              : '';
+          return `- ${binding.robot_name || `robot#${binding.robot_id}`} (${binding.status}, priority=${binding.priority}, version=${binding.skill_version}${provenance})`;
+        })
+      : ['- no robot bindings yet'];
+    const auditLines = taskAuditLogs.length
+      ? taskAuditLogs.slice(0, 5).map((log) => `- ${formatDateTime(log.created_at)} | ${log.action} | ${log.status}`)
+      : ['- no related audit events yet'];
+
+    return [
+      '# Skills Validation Export',
+      '',
+      `- install_task_id: ${selectedTask.id}`,
+      `- skill: ${(selectedTask.installed_skill_slug || 'unknown')}@${selectedTask.installed_skill_version || 'unknown'}`,
+      `- task_status: ${selectedTask.status}`,
+      `- source_type: ${selectedTask.source_type}`,
+      `- requested_by: ${selectedTask.requested_by_username || 'unknown'}`,
+      `- host: ${selectedTaskMeta?.host || 'unknown'}`,
+      `- registry_path: ${selectedTaskMeta?.installPath || 'not-installed'}`,
+      '',
+      '## Robot Bindings',
+      ...bindingLines,
+      '',
+      '## Recent Audit Events',
+      ...auditLines,
+      '',
+      '## Release Review Checklist',
+      ...selectedTaskReleaseChecklistItems.map((item) => `- [ ] ${item}`),
+      '',
+      '## Suggested Next Step',
+      `- Open /chat, pick the target robot, and confirm active skill badges still point to install task #${selectedTask.id}.`,
+    ].join('\n');
+  }, [selectedTask, selectedTaskBindings, selectedTaskMeta, selectedTaskReleaseChecklistItems, taskAuditLogs]);
+  const selectedTaskJsonExport = useMemo(
+    () => (selectedTaskValidationExportPayload ? JSON.stringify(selectedTaskValidationExportPayload, null, 2) : ''),
+    [selectedTaskValidationExportPayload],
+  );
+  const selectedTaskExportBaseName = useMemo(() => {
+    if (!selectedTask) {
+      return 'skills-validation-export';
+    }
+    return `skills-validation-task-${selectedTask.id}-${selectedTask.installed_skill_slug || 'unknown'}`;
   }, [selectedTask]);
   const buildRobotEditHref = (robotId: number, skillSlug?: string) => {
     if (!selectedTaskProvenanceId || !skillSlug || skillSlug !== selectedTaskSkillSlug) {
@@ -1429,6 +1561,24 @@ export default function AdminSkillsPage() {
                     <Copy className="mr-2 h-4 w-4" />
                     复制证据模板
                   </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => downloadTextFile(`${selectedTaskExportBaseName}.md`, selectedTaskMarkdownExport, 'text/markdown;charset=utf-8')}
+                    disabled={!selectedTaskMarkdownExport}
+                  >
+                    <Download className="mr-2 h-4 w-4" />
+                    导出 Markdown
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => downloadTextFile(`${selectedTaskExportBaseName}.json`, selectedTaskJsonExport, 'application/json;charset=utf-8')}
+                    disabled={!selectedTaskJsonExport}
+                  >
+                    <Download className="mr-2 h-4 w-4" />
+                    导出 JSON
+                  </Button>
                 </div>
               </CardHeader>
               <CardContent className="grid grid-cols-1 gap-4 xl:grid-cols-2">
@@ -1448,6 +1598,37 @@ export default function AdminSkillsPage() {
                     {selectedTaskEvidenceTemplate}
                   </pre>
                 </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
+                <div>
+                  <CardTitle className="text-base">Release Review Checklist</CardTitle>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    把导出的证据和聊天验证结果一起带进发布评审，避免只看安装成功就直接放行。
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => void copyTextToClipboard(selectedTaskReleaseChecklist, '发布检查清单')}
+                  disabled={!selectedTaskReleaseChecklist}
+                >
+                  <Copy className="mr-2 h-4 w-4" />
+                  复制检查清单
+                </Button>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {selectedTaskReleaseChecklistItems.map((item) => (
+                  <div
+                    key={item}
+                    className="flex items-start gap-3 rounded-2xl border border-gray-200 px-4 py-3 text-sm leading-6 text-gray-700 dark:border-gray-700 dark:text-gray-300"
+                  >
+                    <ListChecks className="mt-0.5 h-4 w-4 flex-none text-primary-600 dark:text-primary-400" />
+                    <span>{item}</span>
+                  </div>
+                ))}
               </CardContent>
             </Card>
 
