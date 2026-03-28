@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import {
   ArrowRightLeft,
   ChevronRight,
+  Copy,
   ExternalLink,
   FileJson,
   Filter,
@@ -118,6 +119,15 @@ function formatBytes(value?: number) {
     return `${(value / 1024).toFixed(1)} KB`;
   }
   return `${(value / (1024 * 1024)).toFixed(2)} MB`;
+}
+
+async function copyTextToClipboard(text: string, label: string) {
+  try {
+    await navigator.clipboard.writeText(text);
+    toast.success(`${label}已复制`);
+  } catch (error) {
+    toast.error(`${label}复制失败`);
+  }
 }
 
 function getTaskStatusPalette(status: string): 'success' | 'danger' | 'warning' | 'primary' {
@@ -323,6 +333,92 @@ export default function AdminSkillsPage() {
   const selectedTaskRobotLinks = useMemo(() => selectedTaskBindings.slice(0, 3), [selectedTaskBindings]);
   const selectedTaskHandoffReady = Boolean(selectedTask?.status === 'installed' && selectedTaskSkillSlug);
   const selectedTaskProvenanceId = selectedTaskHandoffReady ? selectedTask?.id : undefined;
+  const selectedTaskValidationSummary = useMemo(() => {
+    if (!selectedTask) {
+      return '';
+    }
+
+    const checksumState = selectedTaskMeta
+      ? selectedTaskMeta.checksumVerified === true
+        ? 'verified'
+        : selectedTaskMeta.checksumVerified === false
+          ? 'failed'
+          : 'not-recorded'
+      : 'unknown';
+    const signatureState = selectedTaskMeta
+      ? selectedTaskMeta.signatureVerified === true
+        ? `verified${selectedTaskMeta.signatureAlgorithm ? ` (${selectedTaskMeta.signatureAlgorithm})` : ''}`
+        : selectedTaskMeta.signaturePresent
+          ? `present-not-verified${selectedTaskMeta.signatureAlgorithm ? ` (${selectedTaskMeta.signatureAlgorithm})` : ''}`
+          : 'not-provided'
+      : 'unknown';
+    const bindingLines = selectedTaskBindings.length
+      ? selectedTaskBindings.map((binding) => {
+          const provenance =
+            typeof binding.provenance_install_task_id === 'number'
+              ? ` provenance=#${binding.provenance_install_task_id}`
+              : '';
+          return `- ${binding.robot_name || `robot#${binding.robot_id}`} | version=${binding.skill_version} | status=${binding.status} | priority=${binding.priority}${provenance}`;
+        })
+      : ['- no robot bindings yet'];
+    const auditLines = taskAuditLogs.length
+      ? taskAuditLogs.slice(0, 5).map((log) => {
+          const actor = log.actor_username || 'unknown';
+          return `- ${formatDateTime(log.created_at)} | ${log.action} | ${log.status} | actor=${actor}`;
+        })
+      : ['- no related audit events yet'];
+
+    return [
+      'skills_validation_summary',
+      `install_task_id: ${selectedTask.id}`,
+      `skill: ${(selectedTask.installed_skill_slug || 'unknown')}@${selectedTask.installed_skill_version || 'unknown'}`,
+      `task_status: ${selectedTask.status}`,
+      `source_type: ${selectedTask.source_type}`,
+      `requested_by: ${selectedTask.requested_by_username || 'unknown'}`,
+      `host: ${selectedTaskMeta?.host || 'unknown'}`,
+      `checksum: ${checksumState}`,
+      `signature: ${signatureState}`,
+      `registry_path: ${selectedTaskMeta?.installPath || 'not-installed'}`,
+      'robot_bindings:',
+      ...bindingLines,
+      'recent_audit_events:',
+      ...auditLines,
+      `recommended_chat_check: open /chat, pick the target robot, confirm active skill badges still point to install task #${selectedTask.id}`,
+    ].join('\n');
+  }, [selectedTask, selectedTaskBindings, selectedTaskMeta, taskAuditLogs]);
+  const selectedTaskEvidenceTemplate = useMemo(() => {
+    if (!selectedTask) {
+      return '';
+    }
+
+    return [
+      '# Skill Validation Evidence',
+      '',
+      `- install_task_id: ${selectedTask.id}`,
+      `- skill: ${(selectedTask.installed_skill_slug || 'unknown')}@${selectedTask.installed_skill_version || 'unknown'}`,
+      `- task_status: ${selectedTask.status}`,
+      `- admin_review_entry: /admin/skills`,
+      '',
+      '## Binding',
+      '- robot:',
+      '- binding_action:',
+      `- expected_provenance_task_id: ${selectedTask.id}`,
+      '',
+      '## Validation Prompts',
+      '- retrieval_check:',
+      '- response_shape_check:',
+      '- boundary_check:',
+      '',
+      '## Observed Runtime',
+      '- active_skill_badges:',
+      '- chat_summary:',
+      '- answer_excerpt_or_screenshot:',
+      '',
+      '## Verdict',
+      '- result: pending',
+      '- next_action:',
+    ].join('\n');
+  }, [selectedTask]);
   const buildRobotEditHref = (robotId: number, skillSlug?: string) => {
     if (!selectedTaskProvenanceId || !skillSlug || skillSlug !== selectedTaskSkillSlug) {
       return `/robots/${robotId}/edit-test`;
@@ -1305,6 +1401,55 @@ export default function AdminSkillsPage() {
                 </CardContent>
               </Card>
             ) : null}
+
+            <Card>
+              <CardHeader className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
+                <div>
+                  <CardTitle className="text-base">验证摘要与证据模板</CardTitle>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    将安装任务、绑定状态和聊天验证要点整理成可复制文本，直接贴到 incident note、release review 或交接记录里。
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => void copyTextToClipboard(selectedTaskValidationSummary, '验证摘要')}
+                    disabled={!selectedTaskValidationSummary}
+                  >
+                    <Copy className="mr-2 h-4 w-4" />
+                    复制验证摘要
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => void copyTextToClipboard(selectedTaskEvidenceTemplate, '证据模板')}
+                    disabled={!selectedTaskEvidenceTemplate}
+                  >
+                    <Copy className="mr-2 h-4 w-4" />
+                    复制证据模板
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+                <div className="overflow-hidden rounded-2xl border border-gray-200 dark:border-gray-700">
+                  <div className="border-b border-gray-200 bg-gray-50 px-4 py-3 text-sm font-medium text-gray-900 dark:border-gray-700 dark:bg-gray-900/60 dark:text-white">
+                    验证摘要
+                  </div>
+                  <pre className="max-h-[320px] overflow-auto bg-gray-950 px-4 py-4 text-xs leading-6 text-gray-100">
+                    {selectedTaskValidationSummary}
+                  </pre>
+                </div>
+                <div className="overflow-hidden rounded-2xl border border-gray-200 dark:border-gray-700">
+                  <div className="border-b border-gray-200 bg-gray-50 px-4 py-3 text-sm font-medium text-gray-900 dark:border-gray-700 dark:bg-gray-900/60 dark:text-white">
+                    证据模板
+                  </div>
+                  <pre className="max-h-[320px] overflow-auto bg-gray-950 px-4 py-4 text-xs leading-6 text-gray-100">
+                    {selectedTaskEvidenceTemplate}
+                  </pre>
+                </div>
+              </CardContent>
+            </Card>
 
             <Card>
               <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">

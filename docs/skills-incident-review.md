@@ -52,3 +52,4 @@ Use this quick routing:
 - [skills-remote-install-execution.md](./skills-remote-install-execution.md)
 - [skills-install-handoff.md](./skills-install-handoff.md)
 - [skills-provenance.md](./skills-provenance.md)
+- [skills-validation-evidence.md](./skills-validation-evidence.md)

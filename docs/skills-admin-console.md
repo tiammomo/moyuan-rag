@@ -15,6 +15,7 @@ Completed outcomes:
 - Once `ENABLE_REMOTE_SKILL_INSTALL=true`, the drawer also shows persisted download and verification metadata for successful or rejected remote packages.
 - Successful install task drawers now include quick links into skill review, robot edit entry points, and chat validation.
 - Successful install task drawers now include a task-scoped audit timeline so operators can review one install trail in place.
+- Successful install task drawers now include copy-friendly validation summary and evidence template blocks for review handoff.
 - Robot edit entry points can now carry install provenance forward, and provenance-linked binding actions will appear in the same task timeline.
 - Installed skill variants are compared side by side with the current registry version and pinned robot bindings.
 - Operators can rebind drifted robot bindings back to the current skill version from the console.
@@ -29,6 +30,7 @@ The admin console now includes:
 - remote install task retry and cancel buttons when the current task status allows it
 - verification badges and download metadata on task cards, so operators do not need raw JSON for the first pass
 - handoff guidance for review -> bind -> validate after a successful install
+- copyable validation summary and evidence template blocks inside the install task drawer
 - related audit events inside the install task drawer
 - provenance-preserving jump paths from install handoff into robot editing
 - audit log filters and audit detail drawer
@@ -69,3 +71,4 @@ This slice was validated with:
 - [skills-provenance.md](./skills-provenance.md)
 - [skills-validation-playbook.md](./skills-validation-playbook.md)
 - [skills-incident-review.md](./skills-incident-review.md)
+- [skills-validation-evidence.md](./skills-validation-evidence.md)

@@ -61,3 +61,4 @@ Common signs that the rollout did not land correctly:
 - [skills-provenance.md](./skills-provenance.md)
 - [skills-admin-console.md](./skills-admin-console.md)
 - [skills-incident-review.md](./skills-incident-review.md)
+- [skills-validation-evidence.md](./skills-validation-evidence.md)

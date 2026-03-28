@@ -332,7 +332,8 @@ python backend/scripts/local_integration.py --start-infra
 - [docs/skills-provenance.md](docs/skills-provenance.md)
 - [docs/skills-validation-playbook.md](docs/skills-validation-playbook.md)
 - [docs/skills-incident-review.md](docs/skills-incident-review.md)
-- [docs/skills-validation-evidence-plan.md](docs/skills-validation-evidence-plan.md)
+- [docs/skills-validation-evidence.md](docs/skills-validation-evidence.md)
+- [docs/skills-validation-automation-plan.md](docs/skills-validation-automation-plan.md)
 
 ## RAG 教学文档
 
