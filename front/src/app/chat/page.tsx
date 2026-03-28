@@ -220,6 +220,15 @@ export default function ChatPage() {
     void loadActiveSkills();
   }, [currentRobot]);
 
+  const provenanceActiveSkills = activeSkills.filter(
+    (binding): binding is SkillBinding & { provenance_install_task_id: number } =>
+      typeof binding.provenance_install_task_id === 'number',
+  );
+  const provenanceTaskIds = Array.from(
+    new Set(provenanceActiveSkills.map((binding) => binding.provenance_install_task_id)),
+  );
+  const provenanceTaskSummary = provenanceTaskIds.map((taskId) => `#${taskId}`).join(', ');
+
   // 滚动到底部
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -641,6 +650,32 @@ export default function ChatPage() {
           <div className="mt-3 space-y-2">
             <p className="text-xs font-medium text-gray-600 dark:text-gray-300">当前启用技能</p>
             <ActiveSkillBadges skills={activeSkills} />
+            {provenanceActiveSkills.length > 0 && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100">
+                <p className="font-medium">技能验证提示</p>
+                <p className="mt-1 leading-5">
+                  当前有 {provenanceActiveSkills.length} 个启用技能带安装来源，关联任务
+                  {' '}
+                  {provenanceTaskSummary}
+                  。完成对话验证后，请回到
+                  {' '}
+                  <a className="underline underline-offset-2" href="/admin/skills">
+                    /admin/skills
+                  </a>
+                  {' '}
+                  对照安装任务时间线，并在
+                  {' '}
+                  <a
+                    className="underline underline-offset-2"
+                    href={currentRobot ? `/robots/${currentRobot.id}/edit-test` : '/robots'}
+                  >
+                    机器人技能配置
+                  </a>
+                  {' '}
+                  里确认最终绑定状态。
+                </p>
+              </div>
+            )}
           </div>
         </div>
 

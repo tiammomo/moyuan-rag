@@ -37,6 +37,7 @@ Current robot-facing UI now includes:
 - `/chat`
   - Show active skills for the currently selected robot
   - Show provenance badges when a skill binding was linked to an install task
+  - Show a runtime validation hint when active skills carry install provenance metadata
 
 ## Validation Rules
 

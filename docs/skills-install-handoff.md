@@ -45,3 +45,5 @@ This slice was validated with:
 - [skills-remote-install-execution.md](./skills-remote-install-execution.md)
 - [skills-remote-install-operator-ui.md](./skills-remote-install-operator-ui.md)
 - [skills-provenance.md](./skills-provenance.md)
+- [skills-validation-playbook.md](./skills-validation-playbook.md)
+- [skills-incident-review.md](./skills-incident-review.md)

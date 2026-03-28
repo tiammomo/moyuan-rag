@@ -46,3 +46,5 @@ This slice was validated with:
 - [skills-runtime-integration.md](./skills-runtime-integration.md)
 - [skills-admin-console.md](./skills-admin-console.md)
 - [skills-install-handoff.md](./skills-install-handoff.md)
+- [skills-validation-playbook.md](./skills-validation-playbook.md)
+- [skills-incident-review.md](./skills-incident-review.md)

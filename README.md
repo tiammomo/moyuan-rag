@@ -330,7 +330,9 @@ python backend/scripts/local_integration.py --start-infra
 - [docs/skills-remote-install-smoke-test.md](docs/skills-remote-install-smoke-test.md)
 - [docs/skills-install-handoff.md](docs/skills-install-handoff.md)
 - [docs/skills-provenance.md](docs/skills-provenance.md)
-- [docs/skills-validation-playbook-plan.md](docs/skills-validation-playbook-plan.md)
+- [docs/skills-validation-playbook.md](docs/skills-validation-playbook.md)
+- [docs/skills-incident-review.md](docs/skills-incident-review.md)
+- [docs/skills-validation-evidence-plan.md](docs/skills-validation-evidence-plan.md)
 
 ## RAG 教学文档
 
