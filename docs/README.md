@@ -30,6 +30,8 @@
 - [kafka-reliability.md](./kafka-reliability.md)
 - [infra-compose-migration.md](./infra-compose-migration.md)
 - [optimization-roadmap.md](./optimization-roadmap.md)
+- [frontend-typecheck-stability.md](./frontend-typecheck-stability.md)
+- [frontend-eslint-bootstrap.md](./frontend-eslint-bootstrap.md)
 
 ## Skills 能力
 
@@ -61,7 +63,7 @@
 
 ## 当前活动规划
 
-- [frontend-eslint-bootstrap-plan.md](./frontend-eslint-bootstrap-plan.md)
+- [frontend-lint-baseline-plan.md](./frontend-lint-baseline-plan.md)
 - [outreach-assets-plan.md](./outreach-assets-plan.md)
 - [teaching-examples-plan.md](./teaching-examples-plan.md)
 

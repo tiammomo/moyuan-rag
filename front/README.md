@@ -314,6 +314,18 @@ npm run dev
 # 访问 http://localhost:33004
 ```
 
+质量校验入口：
+
+```bash
+# 运行仓库内 ESLint 规则（非交互）
+npm run lint
+
+# 运行类型检查
+npm run type-check
+```
+
+`npm run lint` 现在已经由仓库内 `.eslintrc.json` 固化配置，不会再触发 Next.js 的首次交互式初始化。当前仍有一批历史 warning，已转入仓库文档中的后续基线清理规划。
+
 类型检查建议直接运行：
 
 ```bash

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, type HTMLAttributes, type ReactNode } from 'react';
 import { Send, Plus, Trash2, MessageSquare, ChevronDown, ChevronRight, ThumbsUp, ThumbsDown, FileText, StopCircle, Copy, Check } from 'lucide-react';
 import toast from 'react-hot-toast';
 import ReactMarkdown from 'react-markdown';
@@ -19,6 +19,89 @@ import { chatApi, sessionApi, robotApi, skillApi } from '@/api';
 import { useChatStore } from '@/stores';
 import type { RobotBrief, ChatHistoryItem, RetrievedContext, ChatStreamChunk, SkillBinding } from '@/types';
 
+type MarkdownCodeProps = HTMLAttributes<HTMLElement> & {
+  children?: ReactNode;
+  className?: string;
+  node?: {
+    position?: {
+      start?: {
+        line?: number;
+      };
+    };
+  };
+};
+
+function MarkdownCodeBlock({ children, className, node, ...rest }: MarkdownCodeProps) {
+  const match = /language-(\w+)/.exec(className || '');
+  const isInline = !className && !node?.position?.start?.line;
+  const language = match ? match[1] : '';
+  const codeContent = String(children).replace(/\n$/, '');
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(codeContent);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast.error('复制失败');
+    }
+  };
+
+  if (isInline) {
+    return (
+      <code className="inline-code" {...rest}>
+        {children}
+      </code>
+    );
+  }
+
+  return (
+    <div className="code-block-wrapper relative rounded-lg overflow-hidden my-3 border border-gray-200 dark:border-gray-700">
+      <div className="flex items-center justify-between px-3 py-2 bg-gray-800 dark:bg-gray-900 border-b border-gray-700">
+        <span className="text-xs text-gray-400 font-medium uppercase">
+          {language || 'code'}
+        </span>
+        <button
+          onClick={handleCopy}
+          className="flex items-center gap-1 px-2 py-1 text-xs text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors"
+          title="复制代码"
+        >
+          {copied ? (
+            <>
+              <Check className="h-3 w-3 text-green-400" />
+              <span className="text-green-400">已复制</span>
+            </>
+          ) : (
+            <>
+              <Copy className="h-3 w-3" />
+              <span>复制</span>
+            </>
+          )}
+        </button>
+      </div>
+      <SyntaxHighlighter
+        {...rest}
+        PreTag="div"
+        language={language}
+        style={oneDark}
+        customStyle={{
+          margin: 0,
+          padding: '1rem',
+          backgroundColor: '#1e1e2e',
+          fontSize: '0.875rem',
+          borderRadius: 0,
+        }}
+        wrapLines={true}
+        showLineNumbers={true}
+        lineNumberStyle={{ color: '#6b7280', minWidth: '2em', paddingRight: '1em', textAlign: 'right' }}
+      >
+        {codeContent}
+      </SyntaxHighlighter>
+    </div>
+  );
+}
+
 // 渲染 Markdown 内容（支持 LaTeX）
 function MarkdownRenderer({ content }: { content: string }) {
   return (
@@ -28,78 +111,7 @@ function MarkdownRenderer({ content }: { content: string }) {
       rehypePlugins={[rehypeKatex]}
       components={{
         code(props) {
-          const { children, className, node, ...rest } = props;
-          const match = /language-(\w+)/.exec(className || '');
-          const isInline = !className && !node?.position?.start.line;
-          const language = match ? match[1] : '';
-          let codeContent = String(children).replace(/\n$/, '');
-
-          // 复制功能
-          const [copied, setCopied] = useState(false);
-
-          const handleCopy = async () => {
-            try {
-              await navigator.clipboard.writeText(codeContent);
-              setCopied(true);
-              setTimeout(() => setCopied(false), 2000);
-            } catch (err) {
-              toast.error('复制失败');
-            }
-          };
-
-          if (isInline) {
-            return (
-              <code className="inline-code" {...rest}>
-                {children}
-              </code>
-            );
-          }
-
-          return (
-            <div className="code-block-wrapper relative rounded-lg overflow-hidden my-3 border border-gray-200 dark:border-gray-700">
-              {/* 头部：语言类型 + 复制按钮 */}
-              <div className="flex items-center justify-between px-3 py-2 bg-gray-800 dark:bg-gray-900 border-b border-gray-700">
-                <span className="text-xs text-gray-400 font-medium uppercase">
-                  {language || 'code'}
-                </span>
-                <button
-                  onClick={handleCopy}
-                  className="flex items-center gap-1 px-2 py-1 text-xs text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors"
-                  title="复制代码"
-                >
-                  {copied ? (
-                    <>
-                      <Check className="h-3 w-3 text-green-400" />
-                      <span className="text-green-400">已复制</span>
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="h-3 w-3" />
-                      <span>复制</span>
-                    </>
-                  )}
-                </button>
-              </div>
-              {/* 代码内容 */}
-              <SyntaxHighlighter
-                {...rest}
-                PreTag="div"
-                children={codeContent}
-                language={language}
-                style={oneDark}
-                customStyle={{
-                  margin: 0,
-                  padding: '1rem',
-                  backgroundColor: '#1e1e2e',
-                  fontSize: '0.875rem',
-                  borderRadius: 0,
-                }}
-                wrapLines={true}
-                showLineNumbers={true}
-                lineNumberStyle={{ color: '#6b7280', minWidth: '2em', paddingRight: '1em', textAlign: 'right' }}
-              />
-            </div>
-          );
+          return <MarkdownCodeBlock {...props} />;
         },
         table(props) {
           return (
