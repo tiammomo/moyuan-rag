@@ -84,6 +84,14 @@ class SkillRemoteInstallRequest(BaseModel):
     signature_algorithm: Optional[str] = None
 
 
+class SkillRemoteInstallResponse(BaseModel):
+    message: str
+    install_task_id: Optional[int] = None
+    status: Optional[str] = None
+    installed_skill_slug: Optional[str] = None
+    installed_skill_version: Optional[str] = None
+
+
 class SkillBindingCreate(BaseModel):
     priority: Optional[int] = Field(default=None, ge=1, le=9999)
     status: str = Field(default="active")

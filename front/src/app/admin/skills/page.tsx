@@ -12,6 +12,7 @@ import {
   GitCompare,
   History,
   ListChecks,
+  PackagePlus,
   RefreshCcw,
   ShieldCheck,
   Siren,
@@ -39,6 +40,7 @@ import type {
   SkillAuditLog,
   SkillBinding,
   SkillDetail,
+  SkillRemoteInstallResponse,
   SkillInstallTask,
   SkillInstalledVariant,
   SkillListItem,
@@ -46,12 +48,15 @@ import type {
 
 const taskStatusOptions = [
   { value: '', label: '全部状态' },
+  { value: 'downloading', label: 'downloading' },
   { value: 'pending', label: 'pending' },
+  { value: 'queued', label: 'queued' },
   { value: 'extracting', label: 'extracting' },
   { value: 'installed', label: 'installed' },
   { value: 'failed', label: 'failed' },
   { value: 'rejected', label: 'rejected' },
   { value: 'verifying', label: 'verifying' },
+  { value: 'cancelled', label: 'cancelled' },
 ];
 
 const taskSourceOptions = [
@@ -81,6 +86,72 @@ const cancellableTaskStatuses = new Set(['pending', 'queued', 'verifying', 'down
 
 function formatJson(value: unknown) {
   return JSON.stringify(value ?? {}, null, 2);
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return null;
+  }
+  return value as Record<string, unknown>;
+}
+
+function readString(value: unknown): string | undefined {
+  return typeof value === 'string' && value.trim() ? value : undefined;
+}
+
+function readNumber(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+}
+
+function readBoolean(value: unknown): boolean | undefined {
+  return typeof value === 'boolean' ? value : undefined;
+}
+
+function formatBytes(value?: number) {
+  if (value === undefined || value < 0) {
+    return '未知';
+  }
+  if (value < 1024) {
+    return `${value} B`;
+  }
+  if (value < 1024 * 1024) {
+    return `${(value / 1024).toFixed(1)} KB`;
+  }
+  return `${(value / (1024 * 1024)).toFixed(2)} MB`;
+}
+
+function getTaskStatusPalette(status: string): 'success' | 'danger' | 'warning' | 'primary' {
+  if (status === 'installed') {
+    return 'success';
+  }
+  if (status === 'failed' || status === 'rejected' || status === 'cancelled') {
+    return 'danger';
+  }
+  if (status === 'downloading' || status === 'verifying' || status === 'extracting' || status === 'queued') {
+    return 'warning';
+  }
+  return 'primary';
+}
+
+function getInstallTaskMeta(task: SkillInstallTask) {
+  const details = asRecord(task.details);
+  const verification = asRecord(details?.verification);
+  const download = asRecord(details?.download);
+
+  return {
+    host: readString(details?.host),
+    installPath: readString(details?.install_path),
+    packageUrl: task.package_url || readString(details?.package_url),
+    downloadArchiveName: readString(download?.archive_name),
+    downloadContentType: readString(download?.content_type),
+    downloadSizeBytes: readNumber(download?.size_bytes),
+    checksumExpected: readString(verification?.checksum_expected),
+    checksumActual: readString(verification?.checksum_actual) || task.package_checksum,
+    checksumVerified: readBoolean(verification?.checksum_verified),
+    signatureAlgorithm: readString(verification?.signature_algorithm) || task.signature_algorithm,
+    signaturePresent: readBoolean(verification?.signature_present),
+    signatureVerified: readBoolean(verification?.signature_verified),
+  };
 }
 
 function StatusBadge({
@@ -192,6 +263,12 @@ export default function AdminSkillsPage() {
   const [selectedTask, setSelectedTask] = useState<SkillInstallTask | null>(null);
   const [selectedLog, setSelectedLog] = useState<SkillAuditLog | null>(null);
   const [rollbackVariant, setRollbackVariant] = useState<SkillInstalledVariant | null>(null);
+  const [remoteInstallForm, setRemoteInstallForm] = useState({
+    package_url: '',
+    checksum: '',
+    signature: '',
+    signature_algorithm: 'ed25519',
+  });
 
   const [taskFilters, setTaskFilters] = useState({
     status_filter: '',
@@ -215,6 +292,14 @@ export default function AdminSkillsPage() {
   const failedTaskCount = useMemo(
     () => installTasks.filter((task) => task.status === 'failed' || task.status === 'rejected').length,
     [installTasks],
+  );
+  const remoteTaskCount = useMemo(
+    () => installTasks.filter((task) => task.source_type === 'remote').length,
+    [installTasks],
+  );
+  const selectedTaskMeta = useMemo(
+    () => (selectedTask ? getInstallTaskMeta(selectedTask) : null),
+    [selectedTask],
   );
 
   const rollbackImpact = useMemo(() => {
@@ -405,6 +490,47 @@ export default function AdminSkillsPage() {
     }
   };
 
+  const handleRemoteInstall = async () => {
+    const packageUrl = remoteInstallForm.package_url.trim();
+    const checksum = remoteInstallForm.checksum.trim();
+    const signature = remoteInstallForm.signature.trim();
+    const signatureAlgorithm = remoteInstallForm.signature_algorithm.trim();
+
+    if (!packageUrl) {
+      toast.error('请先填写远端 skill 包地址');
+      return;
+    }
+
+    setOperationKey('remote-install');
+    let response: SkillRemoteInstallResponse | null = null;
+    try {
+      response = await skillApi.installRemote({
+        package_url: packageUrl,
+        checksum: checksum || undefined,
+        signature: signature || undefined,
+        signature_algorithm: signature ? signatureAlgorithm || 'ed25519' : undefined,
+      });
+      toast.success(response.message);
+      setRemoteInstallForm({
+        package_url: '',
+        checksum: '',
+        signature: '',
+        signature_algorithm: 'ed25519',
+      });
+      if (response.installed_skill_slug) {
+        setSelectedSkillSlug(response.installed_skill_slug);
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : '发起远端安装失败');
+    } finally {
+      await loadConsole(false);
+      if (response?.install_task_id) {
+        await loadInstallTaskDetail(response.install_task_id);
+      }
+      setOperationKey(null);
+    }
+  };
+
   if (user?.role !== 'admin') {
     return null;
   }
@@ -529,155 +655,242 @@ export default function AdminSkillsPage() {
                 description="调整过滤器后再试，或等待新的安装请求进入治理台。"
               />
             ) : (
-              installTasks.map((task) => (
-                <div
-                  key={task.id}
-                  className="rounded-2xl border border-gray-200 p-4 transition hover:border-primary-300 dark:border-gray-700 dark:hover:border-primary-700"
-                >
-                  <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                    <div className="space-y-2">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="text-sm font-semibold text-gray-900 dark:text-white">
-                          任务 #{task.id} · {task.installed_skill_slug || task.package_name || '未识别 skill'}
+              installTasks.map((task) => {
+                const meta = getInstallTaskMeta(task);
+                return (
+                  <div
+                    key={task.id}
+                    className="rounded-2xl border border-gray-200 p-4 transition hover:border-primary-300 dark:border-gray-700 dark:hover:border-primary-700"
+                  >
+                    <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                      <div className="space-y-3">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                            任务 #{task.id} · {task.installed_skill_slug || task.package_name || '未识别 skill'}
+                          </p>
+                          <StatusBadge value={task.status} palette={getTaskStatusPalette(task.status)} />
+                          <StatusBadge value={task.source_type} />
+                          {task.installed_skill_version ? (
+                            <StatusBadge value={`版本 ${task.installed_skill_version}`} palette="primary" />
+                          ) : null}
+                        </div>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          请求人 {task.requested_by_username || '未知'} · 创建于 {formatDateTime(task.created_at)}
+                          {task.finished_at ? ` · 完成于 ${formatDateTime(task.finished_at)}` : ''}
                         </p>
-                        <StatusBadge
-                          value={task.status}
-                          palette={
-                            task.status === 'installed'
-                              ? 'success'
-                              : task.status === 'failed' || task.status === 'rejected'
-                                ? 'danger'
-                                : 'warning'
-                          }
-                        />
-                        <StatusBadge value={task.source_type} />
+                        <div className="flex flex-wrap gap-2">
+                          {meta.host ? <StatusBadge value={`host ${meta.host}`} /> : null}
+                          {meta.downloadSizeBytes !== undefined ? (
+                            <StatusBadge value={`包大小 ${formatBytes(meta.downloadSizeBytes)}`} palette="primary" />
+                          ) : null}
+                          {meta.checksumVerified === true ? (
+                            <StatusBadge value="checksum 已校验" palette="success" />
+                          ) : meta.checksumVerified === false ? (
+                            <StatusBadge value="checksum 校验失败" palette="danger" />
+                          ) : task.source_type === 'remote' && (task.package_checksum || meta.checksumExpected) ? (
+                            <StatusBadge value="checksum 待确认" palette="warning" />
+                          ) : null}
+                          {meta.signatureVerified === true ? (
+                            <StatusBadge
+                              value={`签名已校验${meta.signatureAlgorithm ? ` · ${meta.signatureAlgorithm}` : ''}`}
+                              palette="success"
+                            />
+                          ) : meta.signaturePresent ? (
+                            <StatusBadge
+                              value={`签名待确认${meta.signatureAlgorithm ? ` · ${meta.signatureAlgorithm}` : ''}`}
+                              palette="warning"
+                            />
+                          ) : null}
+                          {meta.installPath ? <StatusBadge value="已落 registry" palette="success" /> : null}
+                        </div>
+                        {meta.packageUrl ? (
+                          <p className="text-xs leading-5 text-gray-500 dark:text-gray-400">{meta.packageUrl}</p>
+                        ) : null}
+                        {task.error_message ? (
+                          <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-900/20 dark:text-red-300">
+                            {task.error_message}
+                          </p>
+                        ) : null}
                       </div>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">
-                        请求人 {task.requested_by_username || '未知'} · 创建于 {formatDateTime(task.created_at)}
-                        {task.finished_at ? ` · 完成于 ${formatDateTime(task.finished_at)}` : ''}
-                      </p>
-                      {task.error_message ? (
-                        <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-900/20 dark:text-red-300">
-                          {task.error_message}
-                        </p>
-                      ) : null}
+                      <Button variant="outline" size="sm" onClick={() => void loadInstallTaskDetail(task.id)}>
+                        查看详情
+                        <ChevronRight className="ml-2 h-4 w-4" />
+                      </Button>
                     </div>
-                    <Button variant="outline" size="sm" onClick={() => void loadInstallTaskDetail(task.id)}>
-                      查看详情
-                      <ChevronRight className="ml-2 h-4 w-4" />
-                    </Button>
                   </div>
-                </div>
-              ))
+                );
+              })
             )}
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="space-y-4">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <CardTitle>审计日志</CardTitle>
-                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">按动作、角色和目标资源快速回溯 skills 相关操作。</p>
+        <div className="space-y-6">
+          <Card>
+            <CardHeader className="space-y-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <CardTitle>发起远端安装</CardTitle>
+                  <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">通过 allowlist 控制的远端地址安装 skill 包，并把校验结果落到 install task。</p>
+                </div>
+                <StatusBadge value={`远端任务 ${remoteTaskCount}`} palette="primary" />
               </div>
-              <StatusBadge value={`${auditTotal} 条`} palette="primary" />
-            </div>
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-              <Select
-                value={auditFilters.action_filter}
-                onChange={(event) => setAuditFilters((prev) => ({ ...prev, action_filter: event.target.value }))}
-                options={auditActionOptions}
-              />
-              <Select
-                value={auditFilters.status_filter}
-                onChange={(event) => setAuditFilters((prev) => ({ ...prev, status_filter: event.target.value }))}
-                options={auditStatusOptions}
-              />
-              <Select
-                value={auditFilters.skill_slug}
-                onChange={(event) => setAuditFilters((prev) => ({ ...prev, skill_slug: event.target.value }))}
-                options={[
-                  { value: '', label: '全部 skill' },
-                  ...skills.map((skill) => ({ value: skill.slug, label: skill.name })),
-                ]}
-              />
-              <Select
-                value={auditFilters.robot_id}
-                onChange={(event) => setAuditFilters((prev) => ({ ...prev, robot_id: event.target.value }))}
-                options={[
-                  { value: '', label: '全部机器人' },
-                  ...robotOptions.map((robot) => ({ value: robot.id, label: `${robot.name} (#${robot.id})` })),
-                ]}
-              />
-              <div className="md:col-span-2">
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900 dark:border-amber-900/50 dark:bg-amber-900/20 dark:text-amber-100">
+                仅当后端开启 `ENABLE_REMOTE_SKILL_INSTALL=true` 且目标主机已经加入 `SKILL_REMOTE_ALLOWED_HOSTS` 时，这个入口才会真正执行下载与安装。
+              </div>
+              <div className="space-y-3">
                 <Input
-                  value={auditFilters.actor_username}
-                  onChange={(event) => setAuditFilters((prev) => ({ ...prev, actor_username: event.target.value }))}
-                  placeholder="操作人用户名"
+                  value={remoteInstallForm.package_url}
+                  onChange={(event) =>
+                    setRemoteInstallForm((prev) => ({ ...prev, package_url: event.target.value }))
+                  }
+                  placeholder="https://packages.example.com/skills/demo-skill.zip"
+                />
+                <Input
+                  value={remoteInstallForm.checksum}
+                  onChange={(event) =>
+                    setRemoteInstallForm((prev) => ({ ...prev, checksum: event.target.value }))
+                  }
+                  placeholder="sha256:... 或 64 位十六进制摘要"
+                />
+                <Input
+                  value={remoteInstallForm.signature}
+                  onChange={(event) =>
+                    setRemoteInstallForm((prev) => ({ ...prev, signature: event.target.value }))
+                  }
+                  placeholder="可选：base64 或 hex 编码的 Ed25519 detached signature"
+                />
+                <Select
+                  value={remoteInstallForm.signature_algorithm}
+                  onChange={(event) =>
+                    setRemoteInstallForm((prev) => ({ ...prev, signature_algorithm: event.target.value }))
+                  }
+                  options={[
+                    { value: 'ed25519', label: 'ed25519' },
+                  ]}
                 />
               </div>
-            </div>
-            <div className="flex justify-end">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() =>
-                  setAuditFilters({
-                    action_filter: '',
-                    status_filter: '',
-                    actor_username: '',
-                    skill_slug: '',
-                    robot_id: '',
-                  })
-                }
-              >
-                <Filter className="mr-2 h-4 w-4" />
-                重置审计过滤器
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {auditLogs.length === 0 ? (
-              <EmptyState title="没有匹配的审计日志" description="当前过滤条件下没有找到相关记录。" />
-            ) : (
-              auditLogs.map((log) => (
-                <div
-                  key={log.id}
-                  className="rounded-2xl border border-gray-200 p-4 transition hover:border-primary-300 dark:border-gray-700 dark:hover:border-primary-700"
-                >
-                  <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                    <div className="space-y-2">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="text-sm font-semibold text-gray-900 dark:text-white">{log.action}</p>
-                        <StatusBadge
-                          value={log.status}
-                          palette={
-                            log.status === 'success'
-                              ? 'success'
-                              : log.status === 'failed' || log.status === 'rejected'
-                                ? 'danger'
-                                : 'warning'
-                          }
-                        />
-                        {log.skill_slug ? <StatusBadge value={log.skill_slug} /> : null}
-                      </div>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">
-                        {log.actor_username || '未知操作人'} · {log.actor_role || 'unknown'} · {formatDateTime(log.created_at)}
-                      </p>
-                      {log.message ? (
-                        <p className="text-sm leading-6 text-gray-700 dark:text-gray-300">{log.message}</p>
-                      ) : null}
-                    </div>
-                    <Button variant="outline" size="sm" onClick={() => setSelectedLog(log)}>
-                      查看详情
-                      <ChevronRight className="ml-2 h-4 w-4" />
-                    </Button>
-                  </div>
+              <div className="flex flex-wrap gap-2">
+                <StatusBadge value="allowlist required" />
+                <StatusBadge value="sha256 checksum" palette="primary" />
+                <StatusBadge value="Ed25519 optional" palette="primary" />
+              </div>
+              <div className="flex justify-end">
+                <Button onClick={() => void handleRemoteInstall()} loading={operationKey === 'remote-install'}>
+                  <PackagePlus className="mr-2 h-4 w-4" />
+                  发起远端安装
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="space-y-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <CardTitle>审计日志</CardTitle>
+                  <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">按动作、角色和目标资源快速回溯 skills 相关操作。</p>
                 </div>
-              ))
-            )}
-          </CardContent>
-        </Card>
+                <StatusBadge value={`${auditTotal} 条`} palette="primary" />
+              </div>
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                <Select
+                  value={auditFilters.action_filter}
+                  onChange={(event) => setAuditFilters((prev) => ({ ...prev, action_filter: event.target.value }))}
+                  options={auditActionOptions}
+                />
+                <Select
+                  value={auditFilters.status_filter}
+                  onChange={(event) => setAuditFilters((prev) => ({ ...prev, status_filter: event.target.value }))}
+                  options={auditStatusOptions}
+                />
+                <Select
+                  value={auditFilters.skill_slug}
+                  onChange={(event) => setAuditFilters((prev) => ({ ...prev, skill_slug: event.target.value }))}
+                  options={[
+                    { value: '', label: '全部 skill' },
+                    ...skills.map((skill) => ({ value: skill.slug, label: skill.name })),
+                  ]}
+                />
+                <Select
+                  value={auditFilters.robot_id}
+                  onChange={(event) => setAuditFilters((prev) => ({ ...prev, robot_id: event.target.value }))}
+                  options={[
+                    { value: '', label: '全部机器人' },
+                    ...robotOptions.map((robot) => ({ value: robot.id, label: `${robot.name} (#${robot.id})` })),
+                  ]}
+                />
+                <div className="md:col-span-2">
+                  <Input
+                    value={auditFilters.actor_username}
+                    onChange={(event) => setAuditFilters((prev) => ({ ...prev, actor_username: event.target.value }))}
+                    placeholder="操作人用户名"
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() =>
+                    setAuditFilters({
+                      action_filter: '',
+                      status_filter: '',
+                      actor_username: '',
+                      skill_slug: '',
+                      robot_id: '',
+                    })
+                  }
+                >
+                  <Filter className="mr-2 h-4 w-4" />
+                  重置审计过滤器
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {auditLogs.length === 0 ? (
+                <EmptyState title="没有匹配的审计日志" description="当前过滤条件下没有找到相关记录。" />
+              ) : (
+                auditLogs.map((log) => (
+                  <div
+                    key={log.id}
+                    className="rounded-2xl border border-gray-200 p-4 transition hover:border-primary-300 dark:border-gray-700 dark:hover:border-primary-700"
+                  >
+                    <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                      <div className="space-y-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="text-sm font-semibold text-gray-900 dark:text-white">{log.action}</p>
+                          <StatusBadge
+                            value={log.status}
+                            palette={
+                              log.status === 'success'
+                                ? 'success'
+                                : log.status === 'failed' || log.status === 'rejected'
+                                  ? 'danger'
+                                  : 'warning'
+                            }
+                          />
+                          {log.skill_slug ? <StatusBadge value={log.skill_slug} /> : null}
+                        </div>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          {log.actor_username || '未知操作人'} · {log.actor_role || 'unknown'} · {formatDateTime(log.created_at)}
+                        </p>
+                        {log.message ? (
+                          <p className="text-sm leading-6 text-gray-700 dark:text-gray-300">{log.message}</p>
+                        ) : null}
+                      </div>
+                      <Button variant="outline" size="sm" onClick={() => setSelectedLog(log)}>
+                        查看详情
+                        <ChevronRight className="ml-2 h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[0.72fr_1.28fr]">
@@ -882,6 +1095,64 @@ export default function AdminSkillsPage() {
                 </CardContent>
               </Card>
             </div>
+
+            {selectedTaskMeta ? (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">下载与来源</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3 p-4 text-sm text-gray-600 dark:text-gray-300">
+                    <div className="flex flex-wrap gap-2">
+                      {selectedTaskMeta.host ? (
+                        <StatusBadge value={`host ${selectedTaskMeta.host}`} />
+                      ) : (
+                        <StatusBadge value="未记录 host" palette="warning" />
+                      )}
+                      {selectedTaskMeta.downloadSizeBytes !== undefined ? (
+                        <StatusBadge value={`包大小 ${formatBytes(selectedTaskMeta.downloadSizeBytes)}`} palette="primary" />
+                      ) : null}
+                    </div>
+                    <p><span className="font-medium text-gray-900 dark:text-white">下载文件名:</span> {selectedTaskMeta.downloadArchiveName || '未记录'}</p>
+                    <p><span className="font-medium text-gray-900 dark:text-white">内容类型:</span> {selectedTaskMeta.downloadContentType || '未记录'}</p>
+                    <p className="break-all"><span className="font-medium text-gray-900 dark:text-white">包地址:</span> {selectedTaskMeta.packageUrl || '未记录'}</p>
+                    <p><span className="font-medium text-gray-900 dark:text-white">安装路径:</span> {selectedTaskMeta.installPath || '尚未落 registry'}</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">校验结果</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3 p-4 text-sm text-gray-600 dark:text-gray-300">
+                    <div className="flex flex-wrap gap-2">
+                      {selectedTaskMeta.checksumVerified === true ? (
+                        <StatusBadge value="checksum 已校验" palette="success" />
+                      ) : selectedTaskMeta.checksumVerified === false ? (
+                        <StatusBadge value="checksum 校验失败" palette="danger" />
+                      ) : (
+                        <StatusBadge value="checksum 未记录" palette="warning" />
+                      )}
+                      {selectedTaskMeta.signatureVerified === true ? (
+                        <StatusBadge
+                          value={`签名已校验${selectedTaskMeta.signatureAlgorithm ? ` · ${selectedTaskMeta.signatureAlgorithm}` : ''}`}
+                          palette="success"
+                        />
+                      ) : selectedTaskMeta.signaturePresent ? (
+                        <StatusBadge
+                          value={`签名待确认${selectedTaskMeta.signatureAlgorithm ? ` · ${selectedTaskMeta.signatureAlgorithm}` : ''}`}
+                          palette="warning"
+                        />
+                      ) : (
+                        <StatusBadge value="无签名校验" />
+                      )}
+                    </div>
+                    <p className="break-all"><span className="font-medium text-gray-900 dark:text-white">checksum 期望值:</span> {selectedTaskMeta.checksumExpected || '未提供'}</p>
+                    <p className="break-all"><span className="font-medium text-gray-900 dark:text-white">checksum 实际值:</span> {selectedTaskMeta.checksumActual || '未记录'}</p>
+                    <p><span className="font-medium text-gray-900 dark:text-white">签名算法:</span> {selectedTaskMeta.signatureAlgorithm || '未提供'}</p>
+                  </CardContent>
+                </Card>
+              </div>
+            ) : null}
 
             {selectedTask.error_message ? (
               <div className="rounded-2xl bg-red-50 p-4 text-sm text-red-700 dark:bg-red-900/20 dark:text-red-300">

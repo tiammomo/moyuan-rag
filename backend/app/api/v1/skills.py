@@ -18,6 +18,7 @@ from app.schemas.skill import (
     SkillInstallTaskListResponse,
     SkillListResponse,
     SkillRemoteInstallRequest,
+    SkillRemoteInstallResponse,
 )
 from app.services.skill_service import skill_service
 
@@ -43,7 +44,11 @@ async def install_local_skill(
     return await skill_service.install_local_skill(db, package, current_user)
 
 
-@router.post("/install-remote", summary="Install a remote skill package")
+@router.post(
+    "/install-remote",
+    response_model=SkillRemoteInstallResponse,
+    summary="Install a remote skill package",
+)
 async def install_remote_skill(
     request: SkillRemoteInstallRequest,
     db: AsyncSession = Depends(get_db),

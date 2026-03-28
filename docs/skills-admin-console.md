@@ -6,6 +6,7 @@ This slice turns `skills` governance data into a real operator console instead o
 
 Completed outcomes:
 - Admins can now open `/admin/skills` to review install tasks, audit logs, installed variants, and robot binding drift in one page.
+- Admins can now submit controlled remote install requests directly from `/admin/skills`.
 - Install tasks support filtering by status, source type, skill slug, and requesting username.
 - Audit logs support filtering by action, status, actor username, skill slug, and robot ID.
 - Install task details and audit log details are now visible in JSON drawers for direct troubleshooting.
@@ -19,9 +20,11 @@ Completed outcomes:
 ## UI Coverage
 
 The admin console now includes:
+- a controlled remote install request form with package URL, checksum, optional signature, and signature algorithm
 - summary cards for install tasks, failed/rejected tasks, audit logs, and version-drifted bindings
 - install task filters and task detail drawer
 - remote install task retry and cancel buttons when the current task status allows it
+- verification badges and download metadata on task cards, so operators do not need raw JSON for the first pass
 - audit log filters and audit detail drawer
 - installed variant comparison cards
 - robot binding drift panel with one-click rebind to the current version
@@ -32,12 +35,13 @@ The admin console now includes:
 Recommended usage:
 1. Open `/admin/skills`.
 2. Filter install tasks or audit logs to narrow the incident scope.
-3. Open a single install task to inspect raw task JSON, verification markers, and current retry / cancel affordances.
-4. Retry a rejected or failed remote task, or cancel a still-pending remote task before extraction begins.
-5. Inspect raw audit JSON in the detail drawer when you need the full action trail.
-6. Select the affected skill in the version comparison panel.
-7. Review which robots are still pinned to a historical version.
-8. Rebind drifted robots to the current registry version, or open the rollback preparation modal if a controlled rollback is needed.
+3. Use the remote install form to submit a controlled package URL when the environment allowlist and feature flag are ready.
+4. Inspect task badges to confirm host, package size, checksum, and signature state without opening raw JSON.
+5. Open a single install task to inspect full verification details, retry / cancel affordances, and the raw task JSON when needed.
+6. Inspect raw audit JSON in the detail drawer when you need the full action trail.
+7. Select the affected skill in the version comparison panel.
+8. Review which robots are still pinned to a historical version.
+9. Rebind drifted robots to the current registry version, or open the rollback preparation modal if a controlled rollback is needed.
 
 ## Validation
 
@@ -53,3 +57,4 @@ This slice was validated with:
 - [skills-runtime-integration.md](./skills-runtime-integration.md)
 - [skills-remote-install-security.md](./skills-remote-install-security.md)
 - [skills-remote-install-execution.md](./skills-remote-install-execution.md)
+- [skills-remote-install-operator-ui.md](./skills-remote-install-operator-ui.md)

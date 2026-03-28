@@ -44,12 +44,14 @@
 - [skills-runtime-integration.md](./skills-runtime-integration.md)
 - [skills-admin-console.md](./skills-admin-console.md)
 - [skills-remote-install-execution.md](./skills-remote-install-execution.md)
+- [skills-remote-install-operator-ui.md](./skills-remote-install-operator-ui.md)
+- [skills-remote-install-smoke-test.md](./skills-remote-install-smoke-test.md)
 
-当前已经支持受控远端 skill 下载、checksum 校验、可选 Ed25519 签名校验，以及 `/admin/skills` 中的单任务详情和 retry / cancel。
+当前已经支持受控远端 skill 下载、checksum 校验、可选 Ed25519 签名校验，以及 `/admin/skills` 中的远端安装表单、单任务详情和 retry / cancel。
 
 ## 当前活动规划
 
-- [skills-remote-install-operator-ui-plan.md](./skills-remote-install-operator-ui-plan.md)
+- [skills-install-handoff-plan.md](./skills-install-handoff-plan.md)
 - [outreach-assets-plan.md](./outreach-assets-plan.md)
 - [teaching-examples-plan.md](./teaching-examples-plan.md)
 

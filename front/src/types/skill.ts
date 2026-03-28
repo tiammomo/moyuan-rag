@@ -53,6 +53,21 @@ export interface SkillInstallResponse {
   install_task_id?: number;
 }
 
+export interface SkillRemoteInstallRequest {
+  package_url: string;
+  checksum?: string;
+  signature?: string;
+  signature_algorithm?: string;
+}
+
+export interface SkillRemoteInstallResponse {
+  message: string;
+  install_task_id?: number;
+  status?: string;
+  installed_skill_slug?: string;
+  installed_skill_version?: string;
+}
+
 export interface SkillBindingCreate {
   priority?: number;
   status?: string;

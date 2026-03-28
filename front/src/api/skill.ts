@@ -6,6 +6,8 @@ import type {
   SkillBindingUpdate,
   SkillDetail,
   SkillInstallResponse,
+  SkillRemoteInstallRequest,
+  SkillRemoteInstallResponse,
   SkillInstallTask,
   SkillInstallTaskActionResponse,
   SkillInstallTaskListResponse,
@@ -31,6 +33,11 @@ export const skillApi = {
         'Content-Type': 'multipart/form-data',
       },
     });
+    return response.data;
+  },
+
+  installRemote: async (payload: SkillRemoteInstallRequest): Promise<SkillRemoteInstallResponse> => {
+    const response = await apiClient.post<SkillRemoteInstallResponse>('/skills/install-remote', payload);
     return response.data;
   },
 

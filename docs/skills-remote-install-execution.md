@@ -11,7 +11,7 @@ Completed outcomes:
 - Optional Ed25519 detached signature verification is supported through `SKILL_REMOTE_ED25519_PUBLIC_KEY`.
 - Install task details now persist download size, content type, checksum verification, signature verification, and extracted install path.
 - Remote install reuses the same extraction and registry flow as local zip installation, so success and failure behavior stay consistent.
-- Operators can still inspect a single task and use retry / cancel through `/admin/skills`.
+- Operators can now launch a controlled remote install directly from `/admin/skills`, then inspect a single task and use retry / cancel through the same console.
 
 ## Runtime Flow
 
@@ -75,3 +75,4 @@ This slice was validated with:
 - [skills-remote-allowlist-runbook.md](./skills-remote-allowlist-runbook.md)
 - [skills-admin-console.md](./skills-admin-console.md)
 - [skills-governance-hardening.md](./skills-governance-hardening.md)
+- [skills-remote-install-operator-ui.md](./skills-remote-install-operator-ui.md)

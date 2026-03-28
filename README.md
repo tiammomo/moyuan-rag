@@ -37,7 +37,7 @@
 - **MiniMax 大模型接入**: 已实测支持通过 Anthropic 兼容接口接入 MiniMax 作为聊天模型，完成真实 RAG 问答。
 - **Skills Runtime 能力**: 已支持本地 skill 注册表、机器人技能绑定与排序、运行时 prompt 注入，以及聊天页和机器人页的技能展示。
 - **Skills 治理强化**: 已支持 install task 持久化、操作审计日志、远端来源白名单、受控远端下载、checksum 校验与可选 Ed25519 签名校验，为后续受控 marketplace 做准备。
-- **Skills 管理后台**: 已提供 `/admin/skills` 治理台，用于查看安装任务、单任务详情、审计日志、版本差异、漂移绑定和回滚准备信息，并可对符合条件的远端安装任务执行 retry / cancel。
+- **Skills 管理后台**: 已提供 `/admin/skills` 治理台，用于发起远端安装、查看安装任务、单任务详情、审计日志、版本差异、漂移绑定和回滚准备信息，并可对符合条件的远端安装任务执行 retry / cancel。
 - **SiliconFlow 深度集成**: 针对大模型 Embedding 接口提供自动分批、指数退火重试及详细错误诊断。
 
 ---
@@ -324,7 +324,9 @@ python backend/scripts/local_integration.py --start-infra
 - [docs/skills-runtime-integration.md](docs/skills-runtime-integration.md)
 - [docs/skills-admin-console.md](docs/skills-admin-console.md)
 - [docs/skills-remote-install-execution.md](docs/skills-remote-install-execution.md)
-- [docs/skills-remote-install-operator-ui-plan.md](docs/skills-remote-install-operator-ui-plan.md)
+- [docs/skills-remote-install-operator-ui.md](docs/skills-remote-install-operator-ui.md)
+- [docs/skills-remote-install-smoke-test.md](docs/skills-remote-install-smoke-test.md)
+- [docs/skills-install-handoff-plan.md](docs/skills-install-handoff-plan.md)
 
 ## RAG 教学文档
 
