@@ -322,9 +322,24 @@ npm run lint
 
 # 运行类型检查
 npm run type-check
+
+# 运行本地栈 Playwright 烟测
+npm run smoke:playwright
 ```
 
 `npm run lint` 现在已经由仓库内 `.eslintrc.json` 固化配置，不会再触发 Next.js 的首次交互式初始化。当前仓库前端 lint 基线已经清零，可以直接作为日常校验入口使用。
+
+`npm run smoke:playwright` 默认面向本地 compose 栈：
+- 前端：`http://localhost:33004`
+- 后端：`http://localhost:38084`
+
+默认会优先读取这组环境变量：
+- `PLAYWRIGHT_SMOKE_BASE_URL`
+- `PLAYWRIGHT_SMOKE_API_URL`
+- `PLAYWRIGHT_SMOKE_USERNAME`
+- `PLAYWRIGHT_SMOKE_PASSWORD`
+
+如果没有显式传入用户名和密码，脚本会回落读取本地 `backend/.env` 里的 `DEFAULT_ADMIN_USERNAME` / `DEFAULT_ADMIN_PASSWORD`。烟测产物会输出到 `front/test-results/playwright-smoke/<timestamp>/summary.json` 和同目录截图文件。
 
 类型检查建议直接运行：
 

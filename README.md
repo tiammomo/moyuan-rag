@@ -274,6 +274,8 @@ cd front
 npm run lint
 # 运行类型检查
 npm run type-check
+# 运行 Playwright 烟测
+npm run smoke:playwright
 ```
 
 `npm run lint` 现在已经有仓库内 ESLint 配置，不会再触发 Next.js 首次运行的交互式初始化；当前剩余 warning 已转入后续前端 lint 基线清理规划。
@@ -281,6 +283,8 @@ npm run type-check
 `npm run type-check` 现在会在首次运行缺少 `.next/types` 时自动完成自举，并关闭这次检查的增量缓存，避免 App Router 生成类型文件尚未就绪时出现偶发失败。
 
 当前前端 `lint` 基线已经清零，`npm run lint`、`npm run type-check` 和 `npm run build` 都可以在仓库内直接稳定通过。
+
+`npm run smoke:playwright` 会对本地栈的登录、聊天、知识库、skills 和 `/admin/skills` 做一次浏览器级烟测，并把 `summary.json` 与步骤截图输出到 `front/test-results/playwright-smoke/<timestamp>/`。
 
 ### 本地集成链路
 
@@ -347,7 +351,8 @@ python backend/scripts/local_integration.py --start-infra
 - [docs/frontend-typecheck-stability.md](docs/frontend-typecheck-stability.md)
 - [docs/frontend-eslint-bootstrap.md](docs/frontend-eslint-bootstrap.md)
 - [docs/frontend-lint-baseline.md](docs/frontend-lint-baseline.md)
-- [docs/frontend-playwright-smoke-plan.md](docs/frontend-playwright-smoke-plan.md)
+- [docs/frontend-playwright-smoke.md](docs/frontend-playwright-smoke.md)
+- [docs/frontend-playwright-ci-plan.md](docs/frontend-playwright-ci-plan.md)
 
 ## RAG 教学文档
 

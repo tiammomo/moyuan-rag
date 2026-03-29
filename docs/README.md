@@ -33,6 +33,7 @@
 - [frontend-typecheck-stability.md](./frontend-typecheck-stability.md)
 - [frontend-eslint-bootstrap.md](./frontend-eslint-bootstrap.md)
 - [frontend-lint-baseline.md](./frontend-lint-baseline.md)
+- [frontend-playwright-smoke.md](./frontend-playwright-smoke.md)
 
 ## Skills 能力
 
@@ -64,7 +65,7 @@
 
 ## 当前活动规划
 
-- [frontend-playwright-smoke-plan.md](./frontend-playwright-smoke-plan.md)
+- [frontend-playwright-ci-plan.md](./frontend-playwright-ci-plan.md)
 - [outreach-assets-plan.md](./outreach-assets-plan.md)
 - [teaching-examples-plan.md](./teaching-examples-plan.md)
 
