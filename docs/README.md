@@ -34,6 +34,7 @@
 - [frontend-eslint-bootstrap.md](./frontend-eslint-bootstrap.md)
 - [frontend-lint-baseline.md](./frontend-lint-baseline.md)
 - [frontend-playwright-smoke.md](./frontend-playwright-smoke.md)
+- [frontend-playwright-operator.md](./frontend-playwright-operator.md)
 
 ## Skills 能力
 

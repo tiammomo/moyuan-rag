@@ -93,6 +93,22 @@ To follow logs continuously:
 python backend/scripts/rag_stack.py logs --follow
 ```
 
+## Run Playwright Smoke
+
+Run the shared browser smoke workflow through the operator CLI:
+
+```bash
+python backend/scripts/rag_stack.py smoke
+```
+
+To ensure the stack is up first:
+
+```bash
+python backend/scripts/rag_stack.py smoke --start-stack
+```
+
+Artifacts are written under `front/test-results/playwright-smoke/operator/` with both `runs/<timestamp>/` and `latest/` outputs.
+
 ## Restart Specific Services
 
 Restart one or more compose services:

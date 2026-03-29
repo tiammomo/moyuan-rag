@@ -341,6 +341,14 @@ npm run smoke:playwright
 
 如果没有显式传入用户名和密码，脚本会回落读取本地 `backend/.env` 里的 `DEFAULT_ADMIN_USERNAME` / `DEFAULT_ADMIN_PASSWORD`。烟测产物会输出到 `front/test-results/playwright-smoke/<timestamp>/summary.json` 和同目录截图文件。
 
+如果你希望通过统一的运维入口运行同一套烟测，可以直接在仓库根目录执行：
+
+```bash
+python backend/scripts/rag_stack.py smoke
+```
+
+这个 operator 入口会把产物归档到 `front/test-results/playwright-smoke/operator/runs/<timestamp>/`，并维护 `latest/` 与 `latest-run.json` 作为稳定出口。
+
 类型检查建议直接运行：
 
 ```bash

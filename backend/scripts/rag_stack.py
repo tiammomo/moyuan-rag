@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import shutil
 import subprocess
 import sys
 import time
@@ -13,13 +14,17 @@ from typing import Any
 
 
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = BACKEND_ROOT.parent
+FRONTEND_ROOT = REPO_ROOT / "front"
 COMPOSE_FILE = BACKEND_ROOT / "docker-compose.yaml"
 NETWORK_NAME = "rag-net"
+BACKEND_API_URL = "http://localhost:38084"
 BACKEND_HEALTH_URL = "http://localhost:38084/health"
 FRONT_URL = "http://localhost:33004"
 KIBANA_URL = "http://localhost:5601"
 KAFKA_UI_URL = "http://localhost:8080"
 ATTU_URL = "http://localhost:8001"
+PLAYWRIGHT_SMOKE_ROOT = FRONTEND_ROOT / "test-results" / "playwright-smoke" / "operator"
 
 NETWORK_CONTAINERS = [
     "rag-mysql8",
@@ -119,10 +124,11 @@ def run_command(
     *,
     capture_output: bool = False,
     input_text: str | None = None,
+    cwd: Path | None = None,
 ) -> subprocess.CompletedProcess[str]:
     result = subprocess.run(
         args,
-        cwd=BACKEND_ROOT,
+        cwd=cwd or BACKEND_ROOT,
         text=True,
         encoding="utf-8",
         errors="replace",
@@ -141,6 +147,14 @@ def run_command(
 
 def run_docker(args: list[str], *, capture_output: bool = False, input_text: str | None = None) -> subprocess.CompletedProcess[str]:
     return run_command(["docker", *args], capture_output=capture_output, input_text=input_text)
+
+
+def run_frontend_command(args: list[str], *, capture_output: bool = False) -> subprocess.CompletedProcess[str]:
+    return run_command(args, capture_output=capture_output, cwd=FRONTEND_ROOT)
+
+
+def npm_executable() -> str:
+    return "npm.cmd" if sys.platform == "win32" else "npm"
 
 
 def parse_json_lines(payload: str) -> list[dict[str, Any]]:
@@ -305,6 +319,21 @@ def wait_http_healthy(name: str, url: str, timeout_sec: int) -> None:
     raise StackCommandError(f"{name} did not become healthy within {timeout_sec} seconds: {url}")
 
 
+def timestamp_segment() -> str:
+    return time.strftime("%Y%m%d-%H%M%S", time.localtime())
+
+
+def copy_tree(source_dir: Path, destination_dir: Path) -> None:
+    if destination_dir.exists():
+        shutil.rmtree(destination_dir)
+    shutil.copytree(source_dir, destination_dir)
+
+
+def write_json(path: Path, payload: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(f"{json.dumps(payload, indent=2, ensure_ascii=False)}\n", encoding="utf-8")
+
+
 def start_stack(build: bool, health_timeout_sec: int) -> None:
     ensure_network()
     ensure_volumes()
@@ -338,6 +367,96 @@ def start_stack(build: bool, health_timeout_sec: int) -> None:
     print("  kibana: http://localhost:5601")
     print("  kafka-ui: http://localhost:8080")
     print("  attu: http://localhost:8001")
+
+
+def run_playwright_smoke(
+    *,
+    base_url: str,
+    api_url: str,
+    username: str | None,
+    password: str | None,
+    output_root: Path,
+    headed: bool,
+    install_browser: bool,
+    start_stack_first: bool,
+    build: bool,
+    health_timeout_sec: int,
+) -> None:
+    if start_stack_first:
+        log_step("ensuring local rag stack is ready before Playwright smoke")
+        start_stack(build=build, health_timeout_sec=health_timeout_sec)
+
+    output_root.mkdir(parents=True, exist_ok=True)
+    run_dir = output_root / "runs" / timestamp_segment()
+    latest_dir = output_root / "latest"
+    latest_index_path = output_root / "latest-run.json"
+
+    if install_browser:
+        log_step("installing Playwright chromium browser")
+        run_frontend_command([npm_executable(), "run", "smoke:playwright:install"])
+
+    smoke_args = [
+        npm_executable(),
+        "run",
+        "smoke:playwright",
+        "--",
+        "--output-dir",
+        str(run_dir),
+        "--base-url",
+        base_url,
+        "--api-url",
+        api_url,
+    ]
+    if username:
+        smoke_args.extend(["--username", username])
+    if password:
+        smoke_args.extend(["--password", password])
+    if headed:
+        smoke_args.append("--headed")
+
+    log_step("running Playwright smoke workflow")
+    run_failed = False
+    failure_message: str | None = None
+    try:
+        run_frontend_command(smoke_args)
+    except StackCommandError as exc:
+        run_failed = True
+        failure_message = str(exc)
+
+    summary_path = run_dir / "summary.json"
+    summary_payload: dict[str, Any] = {}
+    if summary_path.exists():
+        copy_tree(run_dir, latest_dir)
+        try:
+            summary_payload = json.loads(summary_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            summary_payload = {}
+
+    latest_index = {
+        "latest_run_dir": str(run_dir),
+        "latest_summary_path": str(summary_path) if summary_path.exists() else None,
+        "latest_artifact_dir": str(latest_dir) if latest_dir.exists() else None,
+        "base_url": base_url,
+        "api_url": api_url,
+        "status": summary_payload.get("status") if summary_payload else ("failed" if run_failed else None),
+    }
+    write_json(latest_index_path, latest_index)
+
+    print(f"Artifacts root: {output_root}")
+    print(f"Latest run dir: {run_dir}")
+    if latest_dir.exists():
+        print(f"Latest artifact mirror: {latest_dir}")
+    if summary_path.exists():
+        print(f"Latest summary: {summary_path}")
+    if summary_payload.get("steps"):
+        print("Step results:")
+        for step in summary_payload["steps"]:
+            if not isinstance(step, dict):
+                continue
+            print(f"  - {step.get('name')}: {step.get('status')}")
+
+    if run_failed:
+        raise StackCommandError(failure_message or "Playwright smoke failed.")
 
 
 def endpoint_status(name: str, url: str, compose_service: str, services: list[dict[str, Any]]) -> dict[str, Any]:
@@ -570,6 +689,18 @@ def build_parser() -> argparse.ArgumentParser:
     restart_parser.add_argument("--include-dependents", action="store_true")
     restart_parser.add_argument("--health-timeout-sec", type=int, default=180)
 
+    smoke_parser = subparsers.add_parser("smoke", help="Run the frontend Playwright smoke workflow.")
+    smoke_parser.add_argument("--base-url", default=FRONT_URL)
+    smoke_parser.add_argument("--api-url", default=BACKEND_API_URL)
+    smoke_parser.add_argument("--username")
+    smoke_parser.add_argument("--password")
+    smoke_parser.add_argument("--headed", action="store_true")
+    smoke_parser.add_argument("--install-browser", action="store_true")
+    smoke_parser.add_argument("--start-stack", action="store_true")
+    smoke_parser.add_argument("--build", action="store_true", help="Rebuild images when used with --start-stack.")
+    smoke_parser.add_argument("--health-timeout-sec", type=int, default=180)
+    smoke_parser.add_argument("--output-root", default=str(PLAYWRIGHT_SMOKE_ROOT))
+
     stop_parser = subparsers.add_parser("stop", help="Stop compose services or remove containers.")
     stop_parser.add_argument("--remove-containers", action="store_true")
     stop_parser.add_argument("--remove-orphans", action="store_true")
@@ -597,6 +728,19 @@ def main(argv: list[str] | None = None) -> int:
             restart_services(
                 normalize_services(args.services),
                 include_dependents=args.include_dependents,
+                health_timeout_sec=args.health_timeout_sec,
+            )
+        elif args.command == "smoke":
+            run_playwright_smoke(
+                base_url=args.base_url,
+                api_url=args.api_url,
+                username=args.username,
+                password=args.password,
+                output_root=Path(args.output_root).resolve(),
+                headed=args.headed,
+                install_browser=args.install_browser,
+                start_stack_first=args.start_stack,
+                build=args.build,
                 health_timeout_sec=args.health_timeout_sec,
             )
         elif args.command == "stop":

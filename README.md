@@ -155,6 +155,14 @@ python backend/scripts/rag_stack.py restart backend --include-dependents
 python backend/scripts/rag_stack.py stop
 ```
 
+从 operator CLI 直接运行共享的浏览器烟测：
+
+```bash
+python backend/scripts/rag_stack.py smoke
+```
+
+这个入口会包装前端 Playwright 烟测，并把最新产物镜像到 `front/test-results/playwright-smoke/operator/latest/`。
+
 更详细的本地编排与排障说明见：
 
 - [docs/full-stack-compose.md](docs/full-stack-compose.md)
@@ -286,6 +294,8 @@ npm run smoke:playwright
 
 `npm run smoke:playwright` 会对本地栈的登录、聊天、知识库、skills 和 `/admin/skills` 做一次浏览器级烟测，并把 `summary.json` 与步骤截图输出到 `front/test-results/playwright-smoke/<timestamp>/`。
 
+`python backend/scripts/rag_stack.py smoke` 提供了共享的 operator 包装器，会在 `front/test-results/playwright-smoke/operator/` 下维护 `runs/<timestamp>/`、`latest/` 和 `latest-run.json`，便于重复执行和自动化归档。
+
 ### 本地集成链路
 
 推荐在基础设施或 worker 变更后运行：
@@ -352,6 +362,7 @@ python backend/scripts/local_integration.py --start-infra
 - [docs/frontend-eslint-bootstrap.md](docs/frontend-eslint-bootstrap.md)
 - [docs/frontend-lint-baseline.md](docs/frontend-lint-baseline.md)
 - [docs/frontend-playwright-smoke.md](docs/frontend-playwright-smoke.md)
+- [docs/frontend-playwright-operator.md](docs/frontend-playwright-operator.md)
 - [docs/frontend-playwright-ci-plan.md](docs/frontend-playwright-ci-plan.md)
 
 ## RAG 教学文档
