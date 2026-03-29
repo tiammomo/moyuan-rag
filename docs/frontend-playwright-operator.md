@@ -54,6 +54,8 @@ python backend/scripts/rag_stack.py smoke --ensure-admin
 
 That command provisions a dedicated smoke admin from `PLAYWRIGHT_SMOKE_USERNAME`, `PLAYWRIGHT_SMOKE_EMAIL`, and `PLAYWRIGHT_SMOKE_PASSWORD` before opening the browser flow.
 
+The repository-owned GitHub Actions workflow uses the same credential contract and the same operator command so local runs and CI stay aligned.
+
 ## Remaining Gap
 
 The next open item is CI wiring. The operator workflow now has a stable credential contract and artifact layout, but it still needs a concrete automated workflow definition for shared pipelines.

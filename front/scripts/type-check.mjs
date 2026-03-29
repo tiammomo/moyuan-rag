@@ -15,6 +15,7 @@ const requiredTypeMarkers = [
   path.join(projectRoot, ".next", "types", "package.json"),
   path.join(projectRoot, ".next", "types", "app", "page.ts"),
 ];
+const nextBuildDir = path.join(projectRoot, ".next");
 
 function runNodeScript(scriptPath, args, label) {
   const result = spawnSync(process.execPath, [scriptPath, ...args], {
@@ -48,7 +49,18 @@ function shouldRebuildFromTypecheck(result) {
   return output.includes(".next/types") || output.includes("TS6053");
 }
 
+function resetNextBuildArtifacts(reason) {
+  console.log(`[type-check] ${reason}`);
+  fs.rmSync(nextBuildDir, {
+    recursive: true,
+    force: true,
+    maxRetries: 5,
+    retryDelay: 200,
+  });
+}
+
 function ensureGeneratedTypes(reason) {
+  resetNextBuildArtifacts("Resetting stale `.next` artifacts before bootstrapping generated types.");
   console.log(`[type-check] ${reason}`);
   const buildResult = runNodeScript(nextBin, ["build"], "next build");
 

@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev -p 33004",
-    "build": "next build",
+    "build": "node ./scripts/next-build.mjs",
     "start": "next start -p 33004",
     "lint": "next lint",
     "type-check": "node ./scripts/type-check.mjs",

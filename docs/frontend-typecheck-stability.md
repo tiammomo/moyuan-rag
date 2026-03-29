@@ -9,6 +9,7 @@ Completed outcomes:
 - `front/scripts/type-check.mjs` checks whether required Next-generated type markers already exist and runs `next build` once when they do not.
 - The same wrapper also disables incremental mode for the explicit type-check pass so stale `.next/types` references from a previous graph do not keep breaking clean validations.
 - When TypeScript still reports `.next/types`-related `TS6053` errors, the wrapper rebuilds once and retries automatically before surfacing a failure.
+- The bootstrap path now clears stale `.next` build artifacts before rebuilding generated route types, which avoids intermittent `ENOTEMPTY` cleanup failures during retry builds.
 
 ## Root Cause
 

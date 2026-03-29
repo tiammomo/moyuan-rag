@@ -9,6 +9,7 @@ Completed outcomes:
 - `python backend/scripts/rag_stack.py smoke --ensure-admin` now creates or updates that admin before launching the browser smoke workflow.
 - `backend/.env.example` now documents the dedicated `PLAYWRIGHT_SMOKE_*` credentials instead of relying on `DEFAULT_ADMIN_*`.
 - `front/scripts/playwright-smoke.mjs` now resolves `PLAYWRIGHT_SMOKE_USERNAME` and `PLAYWRIGHT_SMOKE_PASSWORD` from both environment variables and `backend/.env` before falling back to default admin settings.
+- The GitHub Actions smoke workflow now uses the same credential contract.
 
 ## Recommended Credential Contract
 

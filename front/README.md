@@ -350,6 +350,7 @@ python backend/scripts/rag_stack.py smoke --ensure-admin
 ```
 
 这个 operator 入口会先确保专用 smoke admin 存在，再把产物归档到 `front/test-results/playwright-smoke/operator/runs/<timestamp>/`，并维护 `latest/` 与 `latest-run.json` 作为稳定出口。
+仓库还内置了对应的 GitHub Actions 工作流：`../.github/workflows/frontend-playwright-smoke.yml`。
 
 类型检查建议直接运行：
 
@@ -358,6 +359,9 @@ npm run type-check
 ```
 
 这个命令现在会在 `.next/types` 缺失时自动先完成一次 Next 类型自举，并在真正的 `tsc` 检查里关闭增量缓存，避免首跑或构建缓存切换时的偶发失败。
+当自举或重试需要重新触发 `next build` 时，脚本也会先清理陈旧 `.next` 产物，减少 `ENOTEMPTY` 一类的目录清理竞态。
+
+`npm run build` 现在也会通过仓库内 wrapper 执行；如果 Next 在清理旧的 `.next/export` 目录时遇到 `ENOTEMPTY` 竞态，脚本会清理该目录并自动重试一次。
 
 ### 生产构建
 

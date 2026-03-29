@@ -1,0 +1,138 @@
+name: frontend-playwright-smoke
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/frontend-playwright-smoke.yml"
+      - "backend/**"
+      - "front/**"
+      - "README.md"
+      - "docs/frontend-playwright-*.md"
+      - "docs/frontend-typecheck-stability.md"
+      - "docs/README.md"
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    env:
+      PYTHON_BASE_IMAGE: python:3.12-slim
+      NODE_BASE_IMAGE: node:20-alpine
+      ELASTICSEARCH_BASE_IMAGE: docker.elastic.co/elasticsearch/elasticsearch:7.17.10
+      PLAYWRIGHT_SMOKE_USERNAME: ${{ vars.PLAYWRIGHT_SMOKE_USERNAME || 'playwright_smoke_admin' }}
+      PLAYWRIGHT_SMOKE_EMAIL: ${{ vars.PLAYWRIGHT_SMOKE_EMAIL || 'playwright-smoke@example.com' }}
+      PLAYWRIGHT_SMOKE_PASSWORD: ${{ secrets.PLAYWRIGHT_SMOKE_PASSWORD }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: front/package-lock.json
+
+      - name: Validate smoke credentials
+        run: |
+          if [ -z "${PLAYWRIGHT_SMOKE_PASSWORD}" ]; then
+            echo "::error::Missing repository secret PLAYWRIGHT_SMOKE_PASSWORD"
+            exit 1
+          fi
+
+      - name: Prepare backend env file
+        run: |
+          cp backend/.env.example backend/.env
+          python - <<'PY'
+          from pathlib import Path
+          import os
+          import secrets
+
+          env_path = Path("backend/.env")
+          replacements = {
+              "JWT_SECRET_KEY": secrets.token_urlsafe(48),
+              "AES_ENCRYPTION_KEY": secrets.token_hex(16),
+              "PLAYWRIGHT_SMOKE_USERNAME": os.environ["PLAYWRIGHT_SMOKE_USERNAME"],
+              "PLAYWRIGHT_SMOKE_EMAIL": os.environ["PLAYWRIGHT_SMOKE_EMAIL"],
+              "PLAYWRIGHT_SMOKE_PASSWORD": os.environ["PLAYWRIGHT_SMOKE_PASSWORD"],
+              "CREATE_DEFAULT_ADMIN": "False",
+              "INIT_DB_ON_STARTUP": "False",
+          }
+
+          output_lines = []
+          for raw_line in env_path.read_text(encoding="utf-8").splitlines():
+              stripped = raw_line.strip()
+              if not stripped or stripped.startswith("#") or "=" not in raw_line:
+                  output_lines.append(raw_line)
+                  continue
+              key, _ = raw_line.split("=", 1)
+              if key in replacements:
+                  output_lines.append(f"{key}={replacements[key]}")
+              else:
+                  output_lines.append(raw_line)
+
+          env_path.write_text("\n".join(output_lines) + "\n", encoding="utf-8")
+          PY
+
+      - name: Install frontend dependencies
+        working-directory: front
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        working-directory: front
+        run: npx playwright install --with-deps chromium
+
+      - name: Validate stack helper scripts
+        run: python -m py_compile backend/scripts/rag_stack.py backend/scripts/ensure_smoke_admin.py
+
+      - name: Frontend lint
+        working-directory: front
+        run: npm run lint
+
+      - name: Frontend build
+        working-directory: front
+        run: npm run build
+
+      - name: Frontend type-check
+        working-directory: front
+        run: npm run type-check
+
+      - name: Start local stack
+        run: python backend/scripts/rag_stack.py start --build --health-timeout-sec 300
+
+      - name: Run operator Playwright smoke
+        run: python backend/scripts/rag_stack.py smoke --ensure-admin --health-timeout-sec 300
+
+      - name: Collect stack diagnostics
+        if: always()
+        run: |
+          mkdir -p .github/artifacts/playwright-smoke
+          python backend/scripts/rag_stack.py status --json > .github/artifacts/playwright-smoke/stack-status.json || true
+          python backend/scripts/rag_stack.py logs --all --tail 500 > .github/artifacts/playwright-smoke/compose-logs.txt || true
+
+      - name: Upload Playwright smoke artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-playwright-smoke-${{ github.run_id }}
+          if-no-files-found: warn
+          path: |
+            front/test-results/playwright-smoke/operator/latest
+            front/test-results/playwright-smoke/operator/latest-run.json
+            .github/artifacts/playwright-smoke
+
+      - name: Stop local stack
+        if: always()
+        run: python backend/scripts/rag_stack.py stop --remove-containers --remove-orphans
