@@ -98,16 +98,17 @@ python backend/scripts/rag_stack.py logs --follow
 Run the shared browser smoke workflow through the operator CLI:
 
 ```bash
-python backend/scripts/rag_stack.py smoke
+python backend/scripts/rag_stack.py smoke --ensure-admin
 ```
 
 To ensure the stack is up first:
 
 ```bash
-python backend/scripts/rag_stack.py smoke --start-stack
+python backend/scripts/rag_stack.py smoke --start-stack --ensure-admin
 ```
 
 Artifacts are written under `front/test-results/playwright-smoke/operator/` with both `runs/<timestamp>/` and `latest/` outputs.
+The recommended credential source is the dedicated `PLAYWRIGHT_SMOKE_USERNAME`, `PLAYWRIGHT_SMOKE_EMAIL`, and `PLAYWRIGHT_SMOKE_PASSWORD` contract documented in `backend/.env.example`.
 
 ## Restart Specific Services
 

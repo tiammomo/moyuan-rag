@@ -25,6 +25,7 @@ KIBANA_URL = "http://localhost:5601"
 KAFKA_UI_URL = "http://localhost:8080"
 ATTU_URL = "http://localhost:8001"
 PLAYWRIGHT_SMOKE_ROOT = FRONTEND_ROOT / "test-results" / "playwright-smoke" / "operator"
+ENSURE_SMOKE_ADMIN_SCRIPT = BACKEND_ROOT / "scripts" / "ensure_smoke_admin.py"
 
 NETWORK_CONTAINERS = [
     "rag-mysql8",
@@ -375,12 +376,14 @@ def run_playwright_smoke(
     api_url: str,
     username: str | None,
     password: str | None,
+    email: str | None,
     output_root: Path,
     headed: bool,
     install_browser: bool,
     start_stack_first: bool,
     build: bool,
     health_timeout_sec: int,
+    ensure_admin: bool,
 ) -> None:
     if start_stack_first:
         log_step("ensuring local rag stack is ready before Playwright smoke")
@@ -394,6 +397,17 @@ def run_playwright_smoke(
     if install_browser:
         log_step("installing Playwright chromium browser")
         run_frontend_command([npm_executable(), "run", "smoke:playwright:install"])
+
+    if ensure_admin:
+        ensure_args = [sys.executable, str(ENSURE_SMOKE_ADMIN_SCRIPT)]
+        if username:
+            ensure_args.extend(["--username", username])
+        if password:
+            ensure_args.extend(["--password", password])
+        if email:
+            ensure_args.extend(["--email", email])
+        log_step("ensuring dedicated Playwright smoke admin exists")
+        run_command(ensure_args)
 
     smoke_args = [
         npm_executable(),
@@ -694,12 +708,14 @@ def build_parser() -> argparse.ArgumentParser:
     smoke_parser.add_argument("--api-url", default=BACKEND_API_URL)
     smoke_parser.add_argument("--username")
     smoke_parser.add_argument("--password")
+    smoke_parser.add_argument("--email")
     smoke_parser.add_argument("--headed", action="store_true")
     smoke_parser.add_argument("--install-browser", action="store_true")
     smoke_parser.add_argument("--start-stack", action="store_true")
     smoke_parser.add_argument("--build", action="store_true", help="Rebuild images when used with --start-stack.")
     smoke_parser.add_argument("--health-timeout-sec", type=int, default=180)
     smoke_parser.add_argument("--output-root", default=str(PLAYWRIGHT_SMOKE_ROOT))
+    smoke_parser.add_argument("--ensure-admin", action="store_true")
 
     stop_parser = subparsers.add_parser("stop", help="Stop compose services or remove containers.")
     stop_parser.add_argument("--remove-containers", action="store_true")
@@ -736,12 +752,14 @@ def main(argv: list[str] | None = None) -> int:
                 api_url=args.api_url,
                 username=args.username,
                 password=args.password,
+                email=args.email,
                 output_root=Path(args.output_root).resolve(),
                 headed=args.headed,
                 install_browser=args.install_browser,
                 start_stack_first=args.start_stack,
                 build=args.build,
                 health_timeout_sec=args.health_timeout_sec,
+                ensure_admin=args.ensure_admin,
             )
         elif args.command == "stop":
             stop_stack(

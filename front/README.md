@@ -337,17 +337,19 @@ npm run smoke:playwright
 - `PLAYWRIGHT_SMOKE_BASE_URL`
 - `PLAYWRIGHT_SMOKE_API_URL`
 - `PLAYWRIGHT_SMOKE_USERNAME`
+- `PLAYWRIGHT_SMOKE_EMAIL`
 - `PLAYWRIGHT_SMOKE_PASSWORD`
 
-如果没有显式传入用户名和密码，脚本会回落读取本地 `backend/.env` 里的 `DEFAULT_ADMIN_USERNAME` / `DEFAULT_ADMIN_PASSWORD`。烟测产物会输出到 `front/test-results/playwright-smoke/<timestamp>/summary.json` 和同目录截图文件。
+如果没有显式传入用户名和密码，脚本会先回落读取本地 `backend/.env` 里的 `PLAYWRIGHT_SMOKE_USERNAME` / `PLAYWRIGHT_SMOKE_PASSWORD`，再最后回落到 `DEFAULT_ADMIN_USERNAME` / `DEFAULT_ADMIN_PASSWORD`。烟测产物会输出到 `front/test-results/playwright-smoke/<timestamp>/summary.json` 和同目录截图文件。
+其中 `PLAYWRIGHT_SMOKE_EMAIL` 主要用于 `python backend/scripts/rag_stack.py smoke --ensure-admin` 这条 operator 流程中的本地账号 provisioning。
 
 如果你希望通过统一的运维入口运行同一套烟测，可以直接在仓库根目录执行：
 
 ```bash
-python backend/scripts/rag_stack.py smoke
+python backend/scripts/rag_stack.py smoke --ensure-admin
 ```
 
-这个 operator 入口会把产物归档到 `front/test-results/playwright-smoke/operator/runs/<timestamp>/`，并维护 `latest/` 与 `latest-run.json` 作为稳定出口。
+这个 operator 入口会先确保专用 smoke admin 存在，再把产物归档到 `front/test-results/playwright-smoke/operator/runs/<timestamp>/`，并维护 `latest/` 与 `latest-run.json` 作为稳定出口。
 
 类型检查建议直接运行：
 

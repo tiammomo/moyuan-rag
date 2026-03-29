@@ -10,6 +10,7 @@ Completed outcomes:
 - The smoke flow covers login, chat, knowledge, skills, and `/admin/skills`.
 - Smoke artifacts are now written to `front/test-results/playwright-smoke/<timestamp>/` as a `summary.json` plus step screenshots.
 - `front/.gitignore` now ignores `test-results/` so repeated local smoke runs do not pollute the repository.
+- The smoke workflow now prefers dedicated `PLAYWRIGHT_SMOKE_*` credentials before any default admin fallback.
 
 ## Smoke Scope
 
@@ -36,11 +37,14 @@ The smoke script resolves credentials in this order:
 1. CLI flags such as `--username` and `--password`
 2. Environment variables:
    - `PLAYWRIGHT_SMOKE_USERNAME`
+   - `PLAYWRIGHT_SMOKE_EMAIL`
    - `PLAYWRIGHT_SMOKE_PASSWORD`
    - `PLAYWRIGHT_SMOKE_BASE_URL`
    - `PLAYWRIGHT_SMOKE_API_URL`
 3. Local fallback from `backend/.env`:
-   - `DEFAULT_ADMIN_USERNAME`
+   - `PLAYWRIGHT_SMOKE_USERNAME`
+   - `PLAYWRIGHT_SMOKE_PASSWORD`
+   - then `DEFAULT_ADMIN_USERNAME`
    - `DEFAULT_ADMIN_PASSWORD`
 
 The script does not commit or export passwords into repository artifacts. The generated `summary.json` stores only the username and route outcomes.

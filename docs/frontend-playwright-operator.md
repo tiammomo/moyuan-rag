@@ -24,6 +24,7 @@ Useful variants:
 ```bash
 python backend/scripts/rag_stack.py smoke --start-stack
 python backend/scripts/rag_stack.py smoke --start-stack --build
+python backend/scripts/rag_stack.py smoke --ensure-admin
 python backend/scripts/rag_stack.py smoke --install-browser
 python backend/scripts/rag_stack.py smoke --username local_admin --password your-password
 ```
@@ -43,9 +44,19 @@ This gives us:
 - one stable path for the latest screenshots and `summary.json`
 - one machine-readable index file that points to the latest run
 
+## Credential Provisioning
+
+The recommended operator path is now:
+
+```bash
+python backend/scripts/rag_stack.py smoke --ensure-admin
+```
+
+That command provisions a dedicated smoke admin from `PLAYWRIGHT_SMOKE_USERNAME`, `PLAYWRIGHT_SMOKE_EMAIL`, and `PLAYWRIGHT_SMOKE_PASSWORD` before opening the browser flow.
+
 ## Remaining Gap
 
-The open item is credentials governance. The operator workflow can already accept explicit credentials or reuse the smoke script fallback chain, but the repository still needs a safer documented path for shared environments and CI.
+The next open item is CI wiring. The operator workflow now has a stable credential contract and artifact layout, but it still needs a concrete automated workflow definition for shared pipelines.
 
 ## Validation
 

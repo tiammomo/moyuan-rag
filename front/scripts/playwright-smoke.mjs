@@ -114,10 +114,12 @@ async function main() {
   const username =
     cliArgs.username ||
     process.env.PLAYWRIGHT_SMOKE_USERNAME ||
+    localEnv.PLAYWRIGHT_SMOKE_USERNAME ||
     localEnv.DEFAULT_ADMIN_USERNAME;
   const password =
     cliArgs.password ||
     process.env.PLAYWRIGHT_SMOKE_PASSWORD ||
+    localEnv.PLAYWRIGHT_SMOKE_PASSWORD ||
     localEnv.DEFAULT_ADMIN_PASSWORD;
   const outputDir =
     cliArgs['output-dir'] ||

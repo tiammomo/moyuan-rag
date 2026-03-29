@@ -158,10 +158,10 @@ python backend/scripts/rag_stack.py stop
 从 operator CLI 直接运行共享的浏览器烟测：
 
 ```bash
-python backend/scripts/rag_stack.py smoke
+python backend/scripts/rag_stack.py smoke --ensure-admin
 ```
 
-这个入口会包装前端 Playwright 烟测，并把最新产物镜像到 `front/test-results/playwright-smoke/operator/latest/`。
+这个入口会先确保专用 Playwright smoke admin 存在，再包装前端 Playwright 烟测，并把最新产物镜像到 `front/test-results/playwright-smoke/operator/latest/`。
 
 更详细的本地编排与排障说明见：
 
@@ -243,6 +243,9 @@ python backend/scripts/repair_demo_unicode.py
 | `ES_HOST` | Elasticsearch 地址 | `http://localhost:9200` |
 | `KAFKA_BOOTSTRAP_SERVERS` | Kafka 地址 | `localhost:9094` |
 | `NEXT_PUBLIC_API_URL` | 前端调用的后端地址 | `http://localhost:38084` |
+| `PLAYWRIGHT_SMOKE_USERNAME` | 专用 Playwright 烟测管理员用户名 | `playwright_smoke_admin` |
+| `PLAYWRIGHT_SMOKE_EMAIL` | 专用 Playwright 烟测管理员邮箱 | `playwright-smoke@example.com` |
+| `PLAYWRIGHT_SMOKE_PASSWORD` | 专用 Playwright 烟测管理员密码 | 请务必修改 |
 | `SKILL_INSTALL_ROOT` | 本地 skills 安装根目录 | `./data/skills` |
 | `ENABLE_REMOTE_SKILL_INSTALL` | 是否允许远端 skill 安装 | `False` |
 | `SKILL_REMOTE_ALLOWED_HOSTS` | 允许远端 skill 安装的主机白名单，逗号分隔 | 空 |
@@ -294,7 +297,7 @@ npm run smoke:playwright
 
 `npm run smoke:playwright` 会对本地栈的登录、聊天、知识库、skills 和 `/admin/skills` 做一次浏览器级烟测，并把 `summary.json` 与步骤截图输出到 `front/test-results/playwright-smoke/<timestamp>/`。
 
-`python backend/scripts/rag_stack.py smoke` 提供了共享的 operator 包装器，会在 `front/test-results/playwright-smoke/operator/` 下维护 `runs/<timestamp>/`、`latest/` 和 `latest-run.json`，便于重复执行和自动化归档。
+`python backend/scripts/rag_stack.py smoke --ensure-admin` 提供了共享的 operator 包装器，会使用专用的 `PLAYWRIGHT_SMOKE_*` 凭据契约同步本地 smoke admin，并在 `front/test-results/playwright-smoke/operator/` 下维护 `runs/<timestamp>/`、`latest/` 和 `latest-run.json`，便于重复执行和自动化归档。
 
 ### 本地集成链路
 
@@ -363,7 +366,8 @@ python backend/scripts/local_integration.py --start-infra
 - [docs/frontend-lint-baseline.md](docs/frontend-lint-baseline.md)
 - [docs/frontend-playwright-smoke.md](docs/frontend-playwright-smoke.md)
 - [docs/frontend-playwright-operator.md](docs/frontend-playwright-operator.md)
-- [docs/frontend-playwright-ci-plan.md](docs/frontend-playwright-ci-plan.md)
+- [docs/frontend-playwright-credential-provisioning.md](docs/frontend-playwright-credential-provisioning.md)
+- [docs/frontend-playwright-github-actions-plan.md](docs/frontend-playwright-github-actions-plan.md)
 
 ## RAG 教学文档
 

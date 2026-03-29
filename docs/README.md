@@ -35,6 +35,7 @@
 - [frontend-lint-baseline.md](./frontend-lint-baseline.md)
 - [frontend-playwright-smoke.md](./frontend-playwright-smoke.md)
 - [frontend-playwright-operator.md](./frontend-playwright-operator.md)
+- [frontend-playwright-credential-provisioning.md](./frontend-playwright-credential-provisioning.md)
 
 ## Skills 能力
 
@@ -66,7 +67,7 @@
 
 ## 当前活动规划
 
-- [frontend-playwright-ci-plan.md](./frontend-playwright-ci-plan.md)
+- [frontend-playwright-github-actions-plan.md](./frontend-playwright-github-actions-plan.md)
 - [outreach-assets-plan.md](./outreach-assets-plan.md)
 - [teaching-examples-plan.md](./teaching-examples-plan.md)
 
