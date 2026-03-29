@@ -10,6 +10,7 @@ Completed outcomes:
 - The workflow uploads `front/test-results/playwright-smoke/operator/latest/` together with stack status and compose logs as GitHub Actions artifacts.
 - The workflow validates the frontend baseline with `npm run lint`, `npm run build`, and `npm run type-check` before browser smoke.
 - The workflow now also runs on `push` to `master`, reuses cached Docker image layers via Buildx, and uploads focused backend/frontend diagnostics.
+- The workflow now writes a compact GitHub job summary plus `artifact-manifest.json` so failures are readable in the Actions UI without opening the artifact zip first.
 
 ## Workflow Trigger
 
@@ -63,6 +64,8 @@ The workflow uploads:
 - `.github/artifacts/playwright-smoke/front-index.html`
 - `.github/artifacts/playwright-smoke/latest-run.json`
 - `.github/artifacts/playwright-smoke/latest-summary.json`
+- `.github/artifacts/playwright-smoke/artifact-manifest.json`
+- `.github/artifacts/playwright-smoke/job-summary.md`
 
 That gives a single latest smoke bundle plus text diagnostics for failed runs.
 

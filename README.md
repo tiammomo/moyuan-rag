@@ -299,6 +299,7 @@ npm run smoke:playwright
 
 `python backend/scripts/rag_stack.py smoke --ensure-admin` 提供了共享的 operator 包装器，会使用专用的 `PLAYWRIGHT_SMOKE_*` 凭据契约同步本地 smoke admin，并在 `front/test-results/playwright-smoke/operator/` 下维护 `runs/<timestamp>/`、`latest/` 和 `latest-run.json`，便于重复执行和自动化归档。
 仓库当前也已经提供了对应的 GitHub Actions 工作流 `.github/workflows/frontend-playwright-smoke.yml`，会在 `pull_request`、`push master` 和手动触发时复用同一条 `rag_stack.py smoke --ensure-admin` 路径，并通过 Buildx 缓存预构建后端、前端和 ES 镜像。
+该工作流现在还会在 GitHub Actions job summary 中直接写出 smoke 结果，并在 artifacts 里补一份 `artifact-manifest.json` 方便快速定位截图和诊断文件。
 `npm run type-check` 的自举脚本现在也会在需要重建 Next 生成类型时先清理陈旧 `.next` 产物，减少目录清理竞态导致的偶发失败。
 `npm run build` 也已经切到仓库内 wrapper，遇到旧 `.next/export` 目录清理竞态时会自动清理并重试一次。
 
@@ -372,7 +373,8 @@ python backend/scripts/local_integration.py --start-infra
 - [docs/frontend-playwright-credential-provisioning.md](docs/frontend-playwright-credential-provisioning.md)
 - [docs/frontend-playwright-github-actions.md](docs/frontend-playwright-github-actions.md)
 - [docs/frontend-playwright-ci-hardening.md](docs/frontend-playwright-ci-hardening.md)
-- [docs/frontend-playwright-reporting-plan.md](docs/frontend-playwright-reporting-plan.md)
+- [docs/frontend-playwright-reporting.md](docs/frontend-playwright-reporting.md)
+- [docs/frontend-playwright-artifact-retention-plan.md](docs/frontend-playwright-artifact-retention-plan.md)
 
 ## RAG 教学文档
 

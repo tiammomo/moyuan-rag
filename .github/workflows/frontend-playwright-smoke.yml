@@ -113,7 +113,7 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Validate stack helper scripts
-        run: python -m py_compile backend/scripts/rag_stack.py backend/scripts/ensure_smoke_admin.py
+        run: python -m py_compile backend/scripts/rag_stack.py backend/scripts/ensure_smoke_admin.py backend/scripts/write_playwright_smoke_report.py
 
       - name: Prebuild Elasticsearch image with cache
         uses: docker/build-push-action@v6
@@ -182,6 +182,16 @@ jobs:
           curl -fsS http://localhost:33004 > .github/artifacts/playwright-smoke/front-index.html || true
           cp front/test-results/playwright-smoke/operator/latest-run.json .github/artifacts/playwright-smoke/latest-run.json || true
           cp front/test-results/playwright-smoke/operator/latest/summary.json .github/artifacts/playwright-smoke/latest-summary.json || true
+
+      - name: Write smoke workflow summary
+        if: always()
+        run: |
+          python backend/scripts/write_playwright_smoke_report.py \
+            --summary-json front/test-results/playwright-smoke/operator/latest/summary.json \
+            --latest-run-json front/test-results/playwright-smoke/operator/latest-run.json \
+            --stack-status-json .github/artifacts/playwright-smoke/stack-status.json \
+            --artifacts-dir .github/artifacts/playwright-smoke \
+            --write-job-summary
 
       - name: Upload Playwright smoke artifacts
         if: always()

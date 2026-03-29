@@ -352,6 +352,7 @@ python backend/scripts/rag_stack.py smoke --ensure-admin
 这个 operator 入口会先确保专用 smoke admin 存在，再把产物归档到 `front/test-results/playwright-smoke/operator/runs/<timestamp>/`，并维护 `latest/` 与 `latest-run.json` 作为稳定出口。
 仓库还内置了对应的 GitHub Actions 工作流：`../.github/workflows/frontend-playwright-smoke.yml`。
 该工作流会在 `pull_request`、`push master` 和手动触发时运行，并预构建缓存化的后端、前端和 Elasticsearch 镜像后再启动本地栈。
+workflow 运行结束后会在 GitHub Actions job summary 里直接写出 smoke 结果，并把 `artifact-manifest.json` 一起上传，方便不解压 zip 也能快速定位截图和诊断文件。
 
 类型检查建议直接运行：
 
