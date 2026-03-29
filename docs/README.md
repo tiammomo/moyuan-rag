@@ -37,6 +37,7 @@
 - [frontend-playwright-operator.md](./frontend-playwright-operator.md)
 - [frontend-playwright-credential-provisioning.md](./frontend-playwright-credential-provisioning.md)
 - [frontend-playwright-github-actions.md](./frontend-playwright-github-actions.md)
+- [frontend-playwright-ci-hardening.md](./frontend-playwright-ci-hardening.md)
 
 ## Skills 能力
 
@@ -68,7 +69,7 @@
 
 ## 当前活动规划
 
-- [frontend-playwright-ci-hardening-plan.md](./frontend-playwright-ci-hardening-plan.md)
+- [frontend-playwright-reporting-plan.md](./frontend-playwright-reporting-plan.md)
 - [outreach-assets-plan.md](./outreach-assets-plan.md)
 - [teaching-examples-plan.md](./teaching-examples-plan.md)
 
